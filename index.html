@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAM: Project Agentic Management</title>
-<meta name="description" content="PAM (Project Agentic Management): a general-purpose system that registers, configures, and runs fleets of long-lived AI agents on real projects, built on the ADA atomic-agent model.">
+<meta name="description" content="PAM (Project Agentic Management): one tool for running AI agents against real projects, built on ADA, an atomic agent that takes one issue to a pull request and stops.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fcfcf9'/%3E%3Ctext x='50' y='76' font-size='64' font-weight='700' text-anchor='middle' fill='%231a1a1a' font-family='Georgia,serif'%3EP%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -15,11 +15,12 @@
   <p class="h">Contents</p>
   <a href="#overview">I &middot; Overview</a>
   <a href="#model">II &middot; The model</a>
-  <a href="#store">III &middot; The Store</a>
-  <a href="#runtime">IV &middot; Runtime &amp; Actions</a>
-  <a href="#bundle">V &middot; Programs, Oracle &amp; KB</a>
-  <a href="#boundaries">VI &middot; Boundaries &amp; invariants</a>
-  <a href="#discussion">VII &middot; Discussion</a>
+  <a href="#ada">III &middot; ADA, the atomic unit</a>
+  <a href="#store">IV &middot; The Store</a>
+  <a href="#runtime">V &middot; Runtime &amp; Actions</a>
+  <a href="#config">VI &middot; Program config &amp; sharing</a>
+  <a href="#boundaries">VII &middot; Boundaries &amp; invariants</a>
+  <a href="#discussion">VIII &middot; Discussion</a>
   <a href="#refs">References</a>
 </nav>
 
@@ -33,21 +34,20 @@
 
     <div class="abstract">
       <span class="h">Abstract</span>
-      <p>PAM (Project Agentic Management) is a general-purpose system for running a fleet of long-lived AI
-      agents against real software projects. An agent in PAM follows the ADA model, where ADA stands for
-      Atomic Agent: it takes one unit of work, builds in an isolated git worktree, reads and writes a
-      shared Knowledge&nbsp;Base, and carries the work to a change that a human reviews and merges. PAM is
-      the system around those agents. It records who they are, holds the configuration for every project
-      it manages, and drives the agents from the events that matter. PAM has three layers. The
-      <em>Store</em> is a local SQLite database of the agents, Programs, roles, and projects on one
-      machine. The <em>Runtime</em> watches a project's issues and pull requests, decides what needs
-      doing, and dispatches work to agents that are already running. A <em>Program</em> is one configured
-      instance, such as Open&nbsp;Library, packaged as a git repository that bundles its code repos, its
-      Knowledge&nbsp;Base, its <em>Oracle</em> (the definition of when work is done), and its roles,
-      skills, and Actions, and published to a central <em>Registry</em> by pull request. This paper
-      describes the model, the three layers, and the constraints that shape them, including why an
-      ephemeral workflow runner cannot do this work and why the core installs and runs without a terminal
-      multiplexer.</p>
+      <p>PAM (Project Agentic Management) is one tool for running AI agents against real software
+      projects. Its atomic unit is <em>ADA</em>, an agent that takes a single issue, develops it in an
+      isolated git worktree against a ledger of what must become true, carries it to a pull request a
+      human reviews and merges, and then stops. You make a repository agent-workable by running
+      <span class="tt">pam init</span> in it, the way you run <span class="tt">git init</span>. For a team,
+      PAM adds a management layer around a fleet of these agents. PAM splits its state the way git does: a
+      Program's authored configuration lives in the repository under <span class="tt">.pam/</span>,
+      committed and shared, while each developer's recorded state (agent homes, sessions, and a local
+      SQLite <em>Store</em>) lives in <span class="tt">~/.pam/</span> and stays on their machine. Three
+      layers sit on that split. The Store is the local recorded state. The <em>Runtime</em> watches a
+      project's issues and pull requests and dispatches work to agents that are already running. The
+      Program config in <span class="tt">.pam/</span> is the authored setup. This paper describes the
+      model, ADA's contract (in particular when an agent is finished, when it is blocked, and why that
+      line is the crux), the three layers, and the constraints that shape them.</p>
     </div>
     <hr class="rule-full">
   </header>
@@ -56,179 +56,182 @@
 
   <section id="overview">
     <h2>Overview</h2>
-    <p>PAM runs a fleet of long-lived AI agents against real projects. You configure a <em>Program</em>
-    (a project, its repositories, its team, and its tooling), and PAM keeps the agents fed from the
-    events that matter (a new issue, a pull request, a review request, a scheduled check) and tracks what
-    each agent is doing. Open&nbsp;Library is one Program. Lenny, Petabox, and PAM itself are others.
-    Nothing in the core is specific to Open&nbsp;Library.</p>
-    <p class="note"><span class="h">Figure 1 (to draw).</span> The three layers: forge events on the left,
-    the Store and the Runtime in the middle, and the agents at work in isolated worktrees on the right.</p>
+    <p>PAM is one tool, <span class="tt">pam</span>, for running AI agents against real projects. You run
+    <span class="tt">pam init</span> in a repository the way you run <span class="tt">git init</span>, and
+    that repository becomes agent-workable. Open&nbsp;Library is one such project. Lenny, Petabox, and PAM
+    itself are others. Nothing in the core is specific to Open&nbsp;Library. A developer who only wants a
+    single reliable agent uses ADA, the atomic unit. A team running a fleet uses the management layer
+    around it.</p>
+    <p class="note"><span class="h">Figure 1 (to draw).</span> The git-style state split and the three
+    layers: the repository with its <span class="tt">.pam/</span> config on one side, <span class="tt">~/.pam/</span>
+    with the Store and agent homes on the other, and the Runtime watching the forge and dispatching to
+    agents at work in worktrees.</p>
   </section>
 
   <section id="model">
     <h2>The model</h2>
-    <p><strong>The agent.</strong> Start with one agent. PAM runs its agents on the ADA model (Atomic
-    Agent). An agent takes a single unit of work, usually one issue or one pull request, and stays with
-    it from start to finish. It works in an isolated git worktree, a private checkout of the repository,
-    so unfinished changes from different agents never collide. Before it starts, it reads the project's
-    <em>Knowledge&nbsp;Base</em>, the shared store of what the team has already learned, and it writes
-    back what it finds. It never merges its own work. A human reviews every change and performs the merge.
-    These conventions come from ADA, the agent system that maintains Open&nbsp;Library; the ADA paper
-    [<a href="#refs">1</a>] describes them in full.</p>
+    <p><strong>One tool, and ADA is the product.</strong> There is one command surface,
+    <span class="tt">pam</span>, and installing it sets up the whole system. ADA ships inside it, at
+    <span class="tt">pam/agents/ada/</span>, because ADA only means something once a project binds its
+    placeholders, so it is a part of PAM and not a separate install. ADA is the broadly useful piece.
+    Every development project needs an agent that can carry one unit of work to a quality pull request and
+    then stop, while only some projects need a management layer over a fleet. So ADA is the product, and
+    the Runtime is the input that feeds it.</p>
 
-    <p><strong>Knowing when work is done.</strong> An agent has to know when a task is finished, and that
-    judgment is the <em>Oracle</em>. A Program defines its Oracle as an ordered set of guard states, for
-    example &ldquo;the branch builds&rdquo;, then &ldquo;the tests pass&rdquo;, then &ldquo;a reviewer has
-    approved&rdquo;. PAM reads the first guard the work has not yet satisfied and reports it as the
-    agent's current state. The Oracle is a separate, pinned tool rather than a part of PAM, because it is
-    useful on its own.</p>
+    <p><strong>The git-style state split.</strong> PAM splits its state the way git does, for the same
+    reason. A Program's authored configuration lives in the repository under <span class="tt">.pam/</span>:
+    the schema, the repositories, the issue tracker, the ADA setup, the roles, and the labels. It is
+    committed and shared, like <span class="tt">.git/config</span> together with tracked files. A
+    developer's recorded state lives in <span class="tt">~/.pam/</span>: the agent home directories, their
+    sessions, and the Store, which is a local SQLite database. It is per machine and never shared, like
+    <span class="tt">~/.gitconfig</span>. The <span class="tt">cq</span> work log and the identity files
+    live there too, inside each agent's home. The authored half travels in the repository; the recorded
+    half stays on the machine. A teammate who clones the repository gets the setup, not your running
+    agents.</p>
 
-    <p><strong>How work reaches an agent.</strong> Work reaches an agent through an <em>Action</em>. An
-    Action is a small declarative rule with two parts: a trigger (an event, such as &ldquo;a subtask was
-    assigned&rdquo;, or a schedule) and a handler (deliver a message to an agent, spawn a new agent, run a
-    skill, or run a script). Skills and Actions are different things. A Skill is a capability an agent
-    uses while it works. An Action is the rule that starts the work.</p>
+    <p><strong>The three layers.</strong> Three layers sit on that split. The <em>Store</em>, in
+    <span class="tt">~/.pam/</span>, is the recorded state: which Programs you have, your agents, their
+    memberships and roles, the projects, and each agent's phase. The <em>Runtime</em> is PAM's execution
+    layer: it watches a Program's issues and pull requests and dispatches work to agents through Actions.
+    The <em>Program config</em>, in the repository's <span class="tt">.pam/</span>, is the authored setup,
+    reviewed through the same pull requests as the code. The rest of the paper takes ADA (&sect;III) and
+    then each layer in turn: the Store (&sect;IV), the Runtime (&sect;V), and the Program config
+    (&sect;VI).</p>
+  </section>
 
-    <p><strong>The Program and the three layers.</strong> PAM organizes all of this around a
-    <em>Program</em>. A Program is one configured instance: its repositories, its Knowledge&nbsp;Base, its
-    Oracle definition, its roles, its skills, and its Actions. Open&nbsp;Library is a Program; Lenny and
-    Petabox are others, and PAM can run itself as a Program. Three layers make a Program work. The
-    <em>Store</em> is a local SQLite database that records what exists on one machine: the installed
-    Programs, the agents, their roles, and the projects. The <em>Runtime</em> watches each Program's
-    issues and pull requests and dispatches work to agents through Actions. A Program's configuration is
-    text in a git repository (named <span class="tt">pam&#8209;{program}</span>, such as
-    <span class="tt">pam&#8209;openlibrary</span>), so anyone can publish and share it; the central
-    <em>Registry</em> is the public index of those published Programs, and you register a Program by
-    opening a pull request against it. One naming point, since an earlier draft got it wrong: in this
-    paper <em>Store</em> always means the local database, and <em>Registry</em> always means the central
-    public index. The rest of the paper takes the three layers in turn: the Store (&sect;III), the
-    Runtime (&sect;IV), and Programs with their Oracle and Knowledge&nbsp;Base (&sect;V).</p>
+  <section id="ada">
+    <h2>ADA, the atomic unit</h2>
+    <p><strong>The contract.</strong> ADA owns one issue from end to end. It starts by posting a ledger:
+    one line for each thing that must become true, written in the issue's own terms as a behavior rather
+    than a task. It develops in its own worktree, writing a failing test first and watching it fail for
+    the expected reason before making it pass, and it adds a regression test for every defect it hits,
+    written before the fix. It opens a draft pull request early, so the work is visible while it is still
+    in progress. It then tests in the real environment, which is not the same as the suite passing, and
+    sorts every claim into what it ran and what it only read. Before marking the work ready it gets an
+    adversarial review from a subagent that inherits none of its context, and every finding is either
+    fixed with a test or rebutted with evidence. It never merges. A human does that.</p>
+
+    <p><strong>The Oracle.</strong> ADA carries a verification layer called the Oracle, and the Oracle is
+    a subconscious rather than a supervisor. It does not drive the agent or approve it. Its one job is to
+    catch the moment the agent is about to stop having missed something, for example writing tests for
+    code it never actually ran. It surfaces at most one thing at a time, and the agent decides what to do
+    with it. Its silence is not approval: nothing firing includes the case where nothing could fire, so a
+    hook that stayed quiet and a hook that could not run look the same.</p>
+
+    <p><strong>Finished, blocked, or still working: the crux.</strong> The hardest part of the contract is
+    knowing when to stop, and it is the crux of the whole design. An agent is <em>finished</em> only when
+    it has closed its own ledger and the single remaining step is a human merge. It is <em>blocked</em>
+    only when it needs a decision, an authorization, or an access that it searched for first and could not
+    resolve, and it says so with a closed question: what it needs, the options, what it already checked,
+    and who decides. Everything else is still work, so it keeps going. That line defends against the two
+    failure modes that matter most: an agent that idles for days waiting on a human, and an agent that a
+    schedule keeps poking into low-value work when nothing real is left.</p>
   </section>
 
   <section id="store">
     <h2>The Store</h2>
-    <p>The Store is the local SQLite database on one machine. It records Programs (each owns one or more
-    repositories), agents (first-class and independent of any Program, each with a stable ULID id and a
-    reusable display name), roles (a seedable catalog of definitions that carry permissions), and
-    memberships (the binding that joins an agent to a Program with a role and a reporting line). A role
-    and a membership are different: the role is the definition, the membership is one agent's use of it. A
-    project is a unit of work. In a GitHub-backed Program a project is projected onto an epic issue, but
-    the epic is only how the project appears on one tracker. The core models the unit of work itself, so
-    a Program on a different tracker fits the same model.</p>
+    <p>The Store is the local SQLite database in <span class="tt">~/.pam/</span>. It records Programs (each
+    owns one or more repositories), agents (first-class and independent of any Program, each with a stable
+    ULID id and a reusable display name), roles (a seedable catalog of definitions that carry
+    permissions), and memberships (the binding that joins an agent to a Program with a role and a
+    reporting line). A role and a membership are different: the role is the definition, the membership is
+    one agent's use of it. A project is a unit of work, projected in a GitHub-backed Program onto an epic
+    issue, though the epic is only how the project appears on one tracker.</p>
     <p>Each agent's ULID id is separate from its display name, so reusing a name can never merge two
-    agents' histories; a partial-unique index on active names enforces that. The Store holds only
-    recorded facts. The authored configuration stays in the Program repository and is read at the moment
-    it is needed (the Runtime pins that read to one commit per tick, &sect;IV).</p>
-    <p>An agent's state, the answer to &ldquo;where are we&rdquo;, is computed rather than stored. PAM
-    keeps no percentage. Its renderer reads live forge signals (the pull request's state, its CI result,
-    its review decision, whether it is a draft) and combines them with a ledger of per-requirement
-    entries, each checked against the live commit. An entry is <span class="tt">done</span>,
-    <span class="tt">stale</span>, <span class="tt">asserted</span>, or <span class="tt">open</span>. The
-    classification is non-monotonic: a rebase can move a <span class="tt">done</span> entry back to
-    <span class="tt">stale</span>, so PAM reports &ldquo;done as of &lt;commit&gt;&rdquo; and not a bare
-    &ldquo;done&rdquo;. The last input, the current Oracle stage, arrives with the ADA fold-in
+    agents' histories; a partial-unique index on active names enforces that. The Store holds only recorded
+    facts. The authored configuration stays in the repository and is read when it is needed, pinned to one
+    commit per tick by the Runtime (&sect;V).</p>
+    <p>An agent's state, the answer to &ldquo;where are we&rdquo;, is computed rather than stored, and this
+    part runs today. PAM reads live forge signals (the pull request's state, its CI result, its review
+    decision, whether it is a draft) and combines them with a ledger of per-requirement entries, each
+    checked against the live commit. An entry is <span class="tt">done</span>, <span class="tt">stale</span>,
+    <span class="tt">asserted</span>, or <span class="tt">open</span>. The classification is non-monotonic:
+    a rebase can move a <span class="tt">done</span> entry back to <span class="tt">stale</span>, so PAM
+    reports &ldquo;done as of &lt;commit&gt;&rdquo; and never a bare &ldquo;done&rdquo;. Wiring the current
+    Oracle stage into this view is part of finishing the ADA fold-in
     (issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/14">#14</a>).</p>
-    <p class="note"><span class="h">Outline note.</span> Add the schema table and the stable-id rationale
-    (why a reused name as the primary key was the original bug). See
-    <span class="tt">docs/registry-design.md</span>.</p>
   </section>
 
   <section id="runtime">
     <h2>Runtime &amp; Actions</h2>
-    <p>The Runtime is the reason PAM exists. It watches a Program's event sources, decides what is
-    actionable, and dispatches Actions, its plugins. An Action is a trigger (an event or a schedule) plus
-    a handler (deliver to an existing agent, spawn, run a skill, or run a script), on the model of a
-    GitHub Actions workflow.</p>
+    <p>The Runtime watches a Program's event sources, decides what is actionable, and dispatches Actions,
+    its plugins. An Action is a trigger (an event or a schedule) plus a handler (deliver to an existing
+    agent, spawn one, run a skill, or run a script), on the model of a GitHub Actions workflow. The
+    Runtime delivers to an agent that already exists rather than starting a fresh container each time.</p>
 
-    <p><strong>Why not GitHub Actions.</strong> The obvious place to run &ldquo;watch GitHub, react to a
-    change&rdquo; is GitHub Actions. It does not fit here, for two structural reasons. First, a workflow
-    run is ephemeral. It gets a container, does one thing, and is destroyed. A PAM agent is expensive to
-    set up and holds a worktree, a running stack, and accumulated context, and it has to stay alive from
-    the moment a pull request opens until it merges. A workflow cannot keep that agent alive; the most it
-    can carry between runs is a session id, a pointer to an environment it has already thrown away.
-    Second, some work cannot run in a workflow at all: a scheduled check against infrastructure that has
-    no runners, a secrets-bound host, or a private configuration repository. So the event source is
-    remote and the execution has to be local and durable. The Runtime is that local, durable layer. Where
-    a workflow does fit, use a workflow.</p>
-
-    <p class="note"><span class="h">Framing note (to settle with Mek).</span> State the claim at the right
-    level. The real question is whether any ephemeral runner can do this work; GitHub Actions is only one
-    example. A self-hosted runner can hold a worktree and secrets. A durable-execution engine such as
-    Temporal, or a long-running service with a job queue, can survive across a pull request's life. What
-    PAM needs is a persistent, context-holding agent that lives across many events, and that requirement
-    is what the motivation should argue.</p>
+    <p><strong>Why not a workflow runner.</strong> The obvious home for &ldquo;watch the forge,
+    react&rdquo; is a workflow runner, and it does not fit, for two structural reasons. A stock ephemeral
+    runner cannot keep an agent alive: a run gets a container, does one thing, and is destroyed, while an
+    ADA agent must survive from the moment a pull request opens until it merges, holding a worktree and
+    accumulated context. And some work cannot run in that model at all, such as a scheduled check against
+    infrastructure with no runners or a secrets-bound host. The honest form of the claim is &ldquo;why not
+    an ephemeral runner&rdquo;, not GitHub Actions in particular. A self-hosted runner can hold a worktree
+    and secrets, and a durable-execution service can survive across a pull request's life, so each solves
+    part of the problem. What is left, a persistent agent that holds context across many events, is what
+    the Runtime provides as the local and durable bridge.</p>
 
     <p><strong>Delivery fires once per material change.</strong> The Runtime's first duty in correctness
-    is to avoid re-firing an Action on every poll. A pull request that stays open for days should trigger
-    its Action once, not every sixty seconds. Each Action is keyed on a hash of its id, the subject it
-    acts on, and a signature of the signals it cares about. Volatile parts of the signature are
-    normalized away, so &ldquo;idle 4.3h&rdquo; and &ldquo;idle 4.6h&rdquo; count as one state. The Store
-    keeps the last signature and fire time for each Action and subject, and the Action fires only when
-    that signature is new or has changed, subject to a per-Action cooldown. The guarantee is at-least-once
-    delivery with idempotent handlers, so a repeated delivery is safe. It is not exactly-once.</p>
+    is to avoid re-firing an Action on every poll. A pull request open for days should trigger its Action
+    once, not every sixty seconds. Each Action is keyed on a hash of its id, the subject it acts on, and a
+    signature of the signals it cares about, with volatile parts normalized away so that
+    &ldquo;idle 4.3h&rdquo; and &ldquo;idle 4.6h&rdquo; count as one state. The Store keeps the last
+    signature and fire time, and the Action fires only when the signature is new or has changed, subject
+    to a per-Action cooldown. The guarantee is at-least-once delivery with idempotent handlers. It is not
+    exactly-once. This decision core, with its dedup and cooldown and a dispatch interface, runs today in
+    dry-run mode.</p>
 
-    <p><strong>Delivery is health-gated.</strong> &ldquo;Deliver to an agent that already exists&rdquo;
-    assumes the agent is alive, and a long-running Claude session is not guaranteed to be: it can lose
-    context or stop. So the Runtime checks an agent's health before it delivers. If the agent is alive or
-    idle, the Runtime delivers the message with Claude's native SendMessage. If the agent is dead, the
-    Runtime respawns it from its stored launch spec (with the session id and working directory) and then
-    delivers. If the health is unknown, the Runtime refuses and surfaces the case rather than delivering
-    into a void. Because SendMessage is native, PAM carries no messaging stack of its own: the Runtime
-    says &ldquo;send message M to agent A&rdquo;, and an injected adapter resolves A to its live session
-    and sends. Address resolution, health checks, and respawning sit below that adapter, in the harness,
-    which keeps the Runtime's decision core free of any terminal-multiplexer dependency.</p>
+    <p><strong>Live delivery is designed and health-aware (forthcoming).</strong> Delivering to an agent
+    that already exists assumes the agent is alive, and a long-running Claude session can lose context or
+    stop. So before delivering, the Runtime is to check the agent's health. It delivers to an alive or
+    idle agent with Claude's native SendMessage. It respawns a dead agent from its stored launch spec and
+    then delivers. For unknown health it refuses and surfaces the case rather than deliver into a void.
+    Because SendMessage is native, PAM carries no messaging stack of its own: the Runtime says
+    &ldquo;send message M to agent A&rdquo;, and an injected adapter resolves A to its live session and
+    sends. The poll loop and this live dispatch are the next build step behind the gate
+    (issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/21">#21</a>).</p>
 
     <p><strong>Reads are consistent within a tick.</strong> The configuration is read live and never
-    cached, but &ldquo;live&rdquo; needs a fixed point. At the start of each tick the Runtime resolves the
-    Program bundle to one commit and reads every Action, role, Oracle definition, and label map at that
-    commit for the whole tick. An edit made in the middle of a tick cannot split one decision across two
-    versions of the configuration.</p>
+    cached, and &ldquo;live&rdquo; needs a fixed point, so at the start of each tick the Runtime resolves
+    the Program config to one commit and reads everything at that commit for the whole tick. An edit made
+    in the middle of a tick cannot split one decision across two versions.</p>
 
     <p class="note"><span class="h">Figure 2 (to draw).</span> The watch, decide, dispatch loop, with the
     dry-run decision core kept separate from the delivery adapter, and the health branch (alive, idle,
-    dead, unknown). See <span class="tt">docs/runtime-design.md</span> and issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/21">#21</a>.</p>
+    dead, unknown). See <span class="tt">docs/runtime-design.md</span>.</p>
   </section>
 
-  <section id="bundle">
-    <h2>Programs, Oracle &amp; the Knowledge Base</h2>
-    <p>A Program is one configured instance, such as Open&nbsp;Library. It bundles its repositories, a
-    shared Knowledge&nbsp;Base, an Oracle definition, roles, skills, and Actions. Two pieces need a word
-    of their own. The <strong>Knowledge&nbsp;Base</strong> is the Program's shared knowledge repository
-    (Open&nbsp;Library's is <span class="tt">ol-kb</span>). An agent reads it before a task and writes
-    back to it after, and it is the successor to the Obsidian vault ADA used
-    (issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>). The <strong>Oracle</strong>
-    is the verification definition introduced in &sect;II: an ordered set of guard states whose first
-    unsatisfied member is the agent's current state. The Oracle is a separate, pinned dependency and is
-    not vendored into PAM (&sect;VI).</p>
-    <p><strong>A Program is shareable.</strong> A Program's configuration is text, so it can be handed to
-    someone else. PAM serializes it to a git repository such as <span class="tt">pam&#8209;openlibrary</span>,
-    on the model of a package registry for agent teams. The shared half is the text in the repository:
-    roles and lead templates, skills, the Oracle definition, Actions, recipes, the label-to-state map, the
-    Knowledge&nbsp;Base, and the pinned versions of PAM, ADA, and Oracle it builds on. The private half
-    stays in local SQLite: which agents exist, their sessions, and who claimed which issue. That recorded
-    state belongs to one machine and would mislead a teammate whose own work has not started. The flow has
-    three steps. <em>Publish</em> pushes the <span class="tt">pam&#8209;{program}</span> repository.
-    <em>Register</em> adds the Program to the central Registry with a pull request against the official PAM
-    repository. <em>Install</em> (<span class="tt">pam program install</span>) clones it, binds local
-    values such as checkout paths and the bot account, and generates fresh local rows. A database file is
-    never committed to git; it is regenerated on install.</p>
-    <p class="note"><span class="h">Security gate (tracked, issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/20">#20</a>).</span>
-    Installing another person's Program runs that Program's Actions and scripts on your hosts under your
-    bot account. That is an arbitrary-code-execution and supply-chain surface, the same one any package
-    index carries. Before &ldquo;clone and install&rdquo; is advertised, publish and install need a trust
-    and review model, and a way to supply secrets that never writes them to the Store or the logs.</p>
+  <section id="config">
+    <h2>Program config &amp; sharing</h2>
+    <p>A Program's authored configuration lives in the repository under <span class="tt">.pam/</span>: the
+    roles, the skills, the Oracle checks for this project, the Actions, and the label-to-state map. It is
+    text, version-controlled, and reviewed through the same pull requests as the code. That is also how
+    PAM keeps its documentation and code from drifting apart, a rule the project enforces: the docs and
+    the code that makes them true land in the same change. The intended entry point is
+    <span class="tt">pam init</span>, run once in a repository the way you run <span class="tt">git init</span>;
+    it is the next thing being built (issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/43">#43</a>).
+    Today the authored config is scaffolded through the existing <span class="tt">pam program</span>
+    commands.</p>
+    <p><strong>Sharing a Program is cloning its repository.</strong> Because the authored half lives in
+    <span class="tt">.pam/</span> and the recorded half stays in <span class="tt">~/.pam/</span>, a
+    teammate who clones the repository gets the setup and none of your running state, and the local
+    database is regenerated rather than committed. There is no separate bundle to publish and no central
+    index to register against. An earlier design had both, and they were dropped in favor of
+    config-in-the-repository. A central community marketplace, a <span class="tt">pam registry</span> on
+    the model of a package index, is a possible later addition and is deferred. It would have its own
+    trust questions to answer first, since installing another person's Program means running their Actions
+    and scripts on your hosts.</p>
   </section>
 
   <section id="boundaries">
     <h2>Boundaries &amp; invariants</h2>
-    <p><strong>Fold-in versus depend-on.</strong> A tool that is useful on its own keeps its own
-    repository, and PAM depends on it at a pinned version; the Oracle is such a tool. A tool that only
-    makes sense inside PAM folds in; ADA folds in as a built-in agent type, a progress renderer, and an
-    onboarding recipe.</p>
-    <p><strong>The no-tmux invariant.</strong> <span class="tt">pip install pam</span> and
-    <span class="tt">pam program add</span> work on a machine with no tmux. PAM never imports cmux; cmux
-    imports PAM, never the other way round. The Runtime's decision core is tmux-free and runs in dry-run
-    mode, and real delivery goes out through the cmux adapter. A test keeps this property green.</p>
+    <p><strong>One tool.</strong> PAM is one tool, so the earlier question of whether ADA should be a
+    separate dependency or folded in is closed: ADA is a built-in part of <span class="tt">pam</span>,
+    and the Oracle ships with it.</p>
+    <p><strong>The no-tmux invariant.</strong> <span class="tt">pip install pam</span> works on a machine
+    with no tmux. PAM never imports cmux; cmux integrates with PAM, not the other way round. Cmux's
+    remaining value is workspaces and keeping agents alive, while native SendMessage handles agent-to-agent
+    messaging. The Runtime's decision core is tmux-free and runs dry-run by default, and real dispatch goes
+    through the cmux seam. A test keeps the no-import rule green, and cmux is out of scope for now.</p>
     <p><strong>Hierarchy is organizational, not an execution path.</strong> The
     <span class="tt">reports_to</span> edge is an org-chart label. PAM does not route live work from agent
     to agent through many hops, because information is lost at each hop. Runtime delegation stays within
@@ -237,29 +240,34 @@
 
   <section id="discussion">
     <h2>Discussion &amp; open questions</h2>
-    <p>This section separates what is settled from what is open, so the paper argues rather than
-    advertises. Several risks raised in early review are now answered in the Runtime design. Delivery
-    fires once per material change (&sect;IV). Liveness is health-gated, with respawn and rehydrate.
-    Native SendMessage removes the need for a separate messaging stack. Each tick pins the configuration
-    to one commit. The earlier confusion between a project and its forge epic is settled: the core models
-    the unit of work and projects it onto an epic (&sect;III).</p>
-    <p>Three questions stay open. The publish and install security gate (&sect;V) is not built. The
-    motivation (&sect;IV) should be argued against any ephemeral runner, addressing self-hosted runners
-    and durable-execution engines directly, which waits on Mek's decision. And three Runtime defaults are
-    unset: the cooldown value, the policy for unknown health, and where the cmux adapter lives.
-    Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/35">#35</a> tracks the current list.</p>
+    <p>This section separates what is settled from what is open. The consolidation to one tool settled
+    several earlier questions. ADA is folded into <span class="tt">pam</span> rather than kept as a
+    separate repository. A Program's config lives in the repository's <span class="tt">.pam/</span>, so
+    sharing is a clone and the publish, install, and central-registry machinery was dropped. The
+    motivation is argued against any ephemeral runner, not GitHub Actions alone. The split between a
+    project and its forge epic is settled: the core models the unit of work.</p>
+    <p>What is open is mostly what is not yet built. <span class="tt">pam init</span> and the
+    <span class="tt">.pam/</span> layout are next (<a href="https://github.com/mekarpeles/PAM/issues/43">#43</a>).
+    Finishing ADA means curating its process, skills, and doctrine into a short set rather than the earlier
+    monolith, and wiring its Oracle stage into the computed state
+    (<a href="https://github.com/mekarpeles/PAM/issues/44">#44</a>,
+    <a href="https://github.com/mekarpeles/PAM/issues/14">#14</a>). The Runtime's poll loop and its gated
+    live dispatch are next, and three defaults stay unset: the cooldown value, the policy for unknown
+    health, and where the cmux seam lives. A Program-level shared Knowledge Base is planned
+    (<a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>). If a community marketplace is ever
+    built, it needs a trust model for running another person's Actions. Issue
+    <a href="https://github.com/mekarpeles/PAM/issues/35">#35</a> tracks the open design questions.</p>
   </section>
 
   <section id="refs" class="refs">
     <h2>References</h2>
     <ol>
-      <li><a href="https://mek.fyi/papers/ada">ADA: Atomic Agent (Atomic Development Agents &amp; the Open Library)</a>. The agent model this paper builds on.</li>
-      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/5">#5</a>: build PAM, the general-purpose Program and agent system.</li>
-      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/21">#21</a>: the Runtime and Actions (the event-to-action layer).</li>
-      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/20">#20</a>: Program publish and install, the <span class="tt">pam&#8209;{program}</span> model (carries the security gate).</li>
-      <li>Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/37">#37</a>: the central Registry (register a Program by pull request). Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>: the Knowledge&nbsp;Base as a Program component. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/14">#14</a>: the ADA fold-in (Oracle stage).</li>
-      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/33">#33</a>: this paper. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/35">#35</a>: the independent-review question list.</li>
-      <li><span class="tt">pam-framework</span>: <span class="tt">README.md</span> (&ldquo;The parts of PAM&rdquo;), <span class="tt">docs/plan.md</span>, <span class="tt">docs/registry-design.md</span>, <span class="tt">docs/runtime-design.md</span>, <span class="tt">docs/quickstart.md</span>.</li>
+      <li><a href="https://mek.fyi/papers/ada">ADA: Atomic Development Agents &amp; the Open Library</a>. The earlier ADA writeup; ADA now lives inside PAM at <span class="tt">pam/agents/ada/</span>.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/5">#5</a>: build PAM.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/21">#21</a>: the Runtime and Actions (the event-to-action layer, with the poll loop and gated live dispatch).</li>
+      <li>Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/43">#43</a>: <span class="tt">pam init</span> and the <span class="tt">.pam/</span>-in-repo config model. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/44">#44</a>: finalize the lean ADA. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/14">#14</a>: ADA as a built-in agent type.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/33">#33</a>: this paper. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/35">#35</a>: the independent-review question list. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>: the planned Knowledge Base.</li>
+      <li><span class="tt">pam-framework</span>: <span class="tt">README.md</span> (canonical), <span class="tt">docs/conventions.md</span>, <span class="tt">docs/plan.md</span>, <span class="tt">docs/registry-design.md</span>, <span class="tt">docs/runtime-design.md</span>, <span class="tt">pam/agents/ada/</span>.</li>
     </ol>
   </section>
 
