@@ -74,14 +74,23 @@
             </marker>
           </defs>
 
-          <!-- forge -->
-          <rect x="24" y="52" width="150" height="60"/>
-          <text class="t" x="99" y="80" text-anchor="middle">Forge</text>
-          <text class="s" x="99" y="98" text-anchor="middle">issues &amp; pull requests</text>
+          <!-- forge (pluggable; the chips are examples) -->
+          <rect x="24" y="40" width="172" height="96"/>
+          <text class="t" x="110" y="60" text-anchor="middle">Forge</text>
+          <text class="s" x="110" y="76" text-anchor="middle">pluggable; examples:</text>
+          <rect x="32" y="84" width="48" height="40"/>
+          <rect x="84" y="84" width="48" height="40"/>
+          <rect x="136" y="84" width="48" height="40"/>
+          <circle cx="56" cy="99" r="5" fill="currentColor"/>
+          <polygon points="108,93 114,105 102,105" fill="currentColor"/>
+          <polygon points="160,93 166,99 160,105 154,99" fill="currentColor"/>
+          <text class="s" x="56" y="119" text-anchor="middle">GitHub</text>
+          <text class="s" x="108" y="119" text-anchor="middle">GitLab</text>
+          <text class="s" x="160" y="119" text-anchor="middle">Jira</text>
 
           <!-- runtime -->
           <rect x="330" y="48" width="170" height="68"/>
-          <text class="t" x="415" y="78" text-anchor="middle">Runtime</text>
+          <text class="t" x="415" y="78" text-anchor="middle">PAM Runtime</text>
           <text class="s" x="415" y="96" text-anchor="middle">watch · decide · dispatch</text>
 
           <!-- agents -->
@@ -117,11 +126,11 @@
           <text class="s" x="701" y="334" text-anchor="middle">cq · sessions</text>
 
           <!-- edges -->
-          <path class="edge arrow" d="M326,80 L178,80"/>
-          <text class="lbl" x="252" y="72" text-anchor="middle">polls</text>
+          <path class="edge arrow" d="M326,84 L200,84"/>
+          <text class="lbl" x="263" y="76" text-anchor="middle">polls</text>
           <path class="edge arrow" d="M500,74 L616,66"/>
           <text class="lbl" x="556" y="96" text-anchor="middle">deliver / spawn</text>
-          <polyline class="edge arrow dash" points="708,36 708,18 99,18 99,52"/>
+          <polyline class="edge arrow dash" points="708,36 708,18 110,18 110,40"/>
           <text class="lbl" x="400" y="14" text-anchor="middle">open &amp; update PRs</text>
           <path class="edge arrow dash" d="M352,116 L150,296"/>
           <text class="lbl" x="214" y="210" text-anchor="middle">reads config</text>
@@ -129,10 +138,11 @@
           <text class="lbl" x="560" y="210" text-anchor="middle">reads / writes state</text>
         </svg>
       </div>
-      <figcaption>The pieces of PAM. The Runtime polls the forge for changes, dispatches work to agents
-      that are already running, and reads the authored config from the repository's
-      <span class="tt">.pam/</span> while recording state in <span class="tt">~/.pam/</span>. The agents
-      open and update pull requests on the forge; a human merges.</figcaption>
+      <figcaption>The pieces of PAM. The PAM Runtime polls the forge for changes, dispatches work to
+      agents that are already running, and reads the authored config from the repository's
+      <span class="tt">.pam/</span> while recording state in <span class="tt">~/.pam/</span>. The forge is
+      pluggable; GitHub, GitLab, and Jira are examples. The agents open and update pull requests on the
+      forge; a human merges.</figcaption>
     </figure>
     <p>The arrow between the Runtime and the forge runs from the Runtime to the forge on purpose: the
     Runtime <em>polls</em>, pulling changes on its own schedule, and the results come back on the same
