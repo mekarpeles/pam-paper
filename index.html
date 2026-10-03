@@ -13,16 +13,15 @@
 
 <nav class="toc" id="toc" aria-label="Contents">
   <p class="h">Contents</p>
-  <a href="#what">I &middot; What is PAM</a>
-  <a href="#philosophy">II &middot; Philosophy</a>
-  <a href="#program">III &middot; The Program</a>
-  <a href="#forge">IV &middot; The Forge</a>
-  <a href="#projects">V &middot; Projects</a>
-  <a href="#team">VI &middot; The team and roles</a>
-  <a href="#kb">VII &middot; The Knowledge Base</a>
-  <a href="#runtime">VIII &middot; The Runtime</a>
-  <a href="#use">IX &middot; Using PAM</a>
-  <a href="#case">X &middot; Case study: Open Library</a>
+  <a href="#philosophy">I &middot; Philosophy</a>
+  <a href="#program">II &middot; The Program</a>
+  <a href="#forge">III &middot; The Forge</a>
+  <a href="#projects">IV &middot; Projects</a>
+  <a href="#team">V &middot; The team and roles</a>
+  <a href="#kb">VI &middot; The Knowledge Base</a>
+  <a href="#runtime">VII &middot; The Runtime</a>
+  <a href="#use">VIII &middot; Using PAM</a>
+  <a href="#case">IX &middot; Case study: Open Library</a>
   <a href="#refs">References</a>
 </nav>
 
@@ -36,42 +35,39 @@
     <div class="abstract">
       <span class="h">Abstract</span>
       <p>PAM (Project Agentic Management) is a way to design, structure, and share a standard agentic
-      project-management workflow for your projects. You add it to a git repository with
-      <span class="tt">pam init</span>, the way you run <span class="tt">git init</span>, and the
-      repository gains a configured team of AI agents that carry work from an issue to a reviewed pull
-      request. The core of PAM is <em>ADA</em>, the Atomic Development Agent: it owns one issue and its
-      pull request as a pair, develops in an isolated worktree against a ledger of what must become true,
-      and stops when the only step left is a human merge. Around ADA, PAM defines a small set of pieces: a
-      project tracking system for issues, a development system for pull requests, a Knowledge Base, and a
-      Runtime that watches for work and dispatches it to agents that already exist. PAM stores its state
-      the way git does: authored configuration lives in the repository under <span class="tt">.pam/</span>,
-      shared through commits, while each developer's recorded state lives in <span class="tt">~/.pam/</span>.
-      This paper gives the model, the philosophy, each piece in turn, how to use the command line, and a
-      case study of Open&nbsp;Library.</p>
+      project-management workflow for your projects. A <em>Program</em> is the configured agentic setup for
+      a project: its one or more repositories, its team of agents, its Knowledge Base, and its config. You
+      start a Program by running <span class="tt">pam init</span> in a repository, the way you run
+      <span class="tt">git init</span>, which roots it there; a single Program can span several
+      repositories. Open&nbsp;Library is one Program; Lenny, Petabox, and PAM itself are others, and nothing
+      in the core is specific to Open&nbsp;Library.</p>
+      <p>The core of PAM is <em>ADA</em>, the Atomic Development Agent: it owns one issue and its pull
+      request as a pair, develops in an isolated worktree against a ledger of what must become true, and
+      stops when the only step left is a human merge. Around ADA, PAM defines a few pieces: a project
+      tracking system for issues, a development system for pull requests, a Knowledge Base, and a Runtime
+      that watches those systems and dispatches work to agents that already exist. There is one tool,
+      <span class="tt">pam</span>, and ADA ships inside it.</p>
+      <p>It helps to separate two kinds of thing. The architectural components are how state is stored and
+      run: a local Store, the split between what lives in the repository and what lives on each machine, and
+      the Runtime. The functional pieces are what you configure for a project: the tracking system, the
+      development system, the Knowledge Base, the Runtime, and ADA. PAM stores its state the way git does:
+      authored configuration lives in the repository under <span class="tt">.pam/</span>, shared through
+      commits, while each developer's recorded state lives in <span class="tt">~/.pam/</span>. This paper
+      gives the philosophy, each piece in turn, how to use the command line, and a case study of
+      Open&nbsp;Library.</p>
     </div>
     <hr class="rule-full">
   </header>
 
   <div class="twocol">
 
-  <section id="what">
-    <h2>What is PAM</h2>
-    <p>PAM is a way to design, structure, and share a standard agentic project-management workflow for
-    your projects. You add it to a git repository, and the repository gains a configured team of agents
-    that take work from your issue tracker to reviewed pull requests. Open&nbsp;Library is one project run
-    this way. Lenny, Petabox, and PAM itself are others, and nothing in the core is specific to
-    Open&nbsp;Library.</p>
-    <p>It helps to separate two kinds of thing. The <em>architectural components</em> are how state is
-    stored and run: a local Store, the split between what lives in the repository and what lives on your
-    machine, and a Runtime that watches for work. The <em>functional pieces</em> are what you configure
-    for a project: a project tracking system for issues, a development system for pull requests, a
-    Knowledge Base, the Runtime, and ADA, the agent that does the work. There is one tool,
-    <span class="tt">pam</span>; ADA ships inside it. Figure&nbsp;1 shows how the pieces fit.</p>
-
+  <section id="philosophy">
+    <h2>Philosophy</h2>
+    <p>Figure&nbsp;1 places the pieces the abstract named: people use <span class="tt">pam</span> to configure a Program, which staffs a fleet of agents that carry work on the project's Forge. The principles below shape how those agents work.</p>
     <figure>
       <div class="figbox figbox--plain">
         <svg class="diagram" viewBox="0 0 820 130" role="img" aria-labelledby="f1t">
-          <title id="f1t">Context: people use pam to configure a Program (a git repo), which staffs a fleet of agents that carry work on the project's Forge.</title>
+          <title id="f1t">Context: people use pam to configure a Program, the configured setup for a project, which staffs a fleet of agents that carry work on the project's Forge.</title>
           <defs>
             <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -85,7 +81,7 @@
           <text class="s" x="239" y="84" text-anchor="middle">one tool</text>
           <rect x="342" y="44" width="130" height="54"/>
           <text class="t" x="407" y="68" text-anchor="middle">Program</text>
-          <text class="s" x="407" y="84" text-anchor="middle">a git repo</text>
+          <text class="s" x="407" y="84" text-anchor="middle">repos + team</text>
           <rect x="520" y="44" width="130" height="54"/>
           <text class="t" x="585" y="68" text-anchor="middle">Fleet</text>
           <text class="s" x="585" y="84" text-anchor="middle">of agents</text>
@@ -102,12 +98,8 @@
           <text class="lbl" x="674" y="63" text-anchor="middle">work on</text>
         </svg>
       </div>
-      <figcaption>A few people direct a fleet of agents that carry work on a project. People use pam to configure a Program, a git repo; the Program staffs the fleet; the fleet works on the Forge, the project's systems. The figures that follow open up each part.</figcaption>
+      <figcaption>A few people direct a fleet of agents that carry work on a project. People use pam to configure a Program, the setup for a project; the Program staffs the fleet; the fleet works on the Forge, the project's systems. The figures that follow open up each part.</figcaption>
     </figure>
-  </section>
-
-  <section id="philosophy">
-    <h2>Philosophy</h2>
     <p>A few principles hold the design together, carried from the practice that produced ADA. An agent
     owns one unit of work and carries it whole, from the issue to a reviewed pull request. Progress is not
     monotonic: a rebase un-does a test that passed, and a moving base un-does a green build, so an agent
@@ -126,12 +118,14 @@
 
   <section id="program">
     <h2>The Program</h2>
-    <p>Every Program starts with a git repository and the <span class="tt">pam</span> command line. You
-    run <span class="tt">pam init</span> in a repository, the way you run <span class="tt">git init</span>,
-    and PAM creates <span class="tt">.pam/</span> in the repository and registers the Program in your local
-    store. A Program is the repository plus its <span class="tt">.pam/</span> configuration. It owns the
-    roles, the Projects, and the rest of the authored setup. (<span class="tt">pam init</span> and the
-    <span class="tt">.pam/</span> layout are shipped.)</p>
+    <p>A Program is the configured agentic setup for a project: its one or more repositories, its team
+    of agents, its Knowledge Base, and its config. The repository is where a Program is rooted, not what
+    a Program is. You start a Program by running <span class="tt">pam init</span> in a repository, the way
+    you run <span class="tt">git init</span>, which creates <span class="tt">.pam/</span> there and
+    registers the Program in your local store. A single Program can span several repositories;
+    Open&nbsp;Library is one Program over five. It owns the roles, the Projects, and the rest of the
+    authored setup. (<span class="tt">pam init</span> and the <span class="tt">.pam/</span> layout are
+    shipped.)</p>
     <p>PAM splits its state the way git does. The authored half lives in the repository and is shared
     through commits; the recorded half stays on each developer's machine. Figure&nbsp;2 shows the split.</p>
 
