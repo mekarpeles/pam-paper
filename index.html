@@ -70,108 +70,39 @@
 
     <figure>
       <div class="figbox figbox--plain">
-        <svg class="diagram" viewBox="0 0 880 470" role="img" aria-labelledby="f1t">
-          <title id="f1t">PAM overview: a developer drives the PAM CLI, which writes the repo's .pam config and records state in ~/.pam; the PAM Runtime polls the tracking system and reads PR and CI state from the development system, and dispatches to the team or fleet of Division Leads and ADA agents; an ADA agent owns an Issue in the tracking system and a PR in the development system; both systems are pluggable.</title>
+        <svg class="diagram" viewBox="0 0 820 130" role="img" aria-labelledby="f1t">
+          <title id="f1t">Context: people use pam to configure a Program (a git repo), which staffs a fleet of agents that carry work on the project's Forge.</title>
           <defs>
             <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
             </marker>
           </defs>
-
-          <!-- developer + PAM CLI -->
-          <circle cx="38" cy="30" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M22,54 a16,13 0 0 1 32,0" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <text class="s" x="38" y="72" text-anchor="middle">Developer</text>
-          <rect x="92" y="18" width="200" height="52"/>
-          <text class="t" x="192" y="42" text-anchor="middle">PAM CLI</text>
-          <text class="s" x="192" y="60" text-anchor="middle">pam init · onboard · status</text>
-          <path class="edge arrow" d="M56,38 L90,38"/>
-          <text class="lbl" x="72" y="30" text-anchor="middle">runs</text>
-
-          <!-- Program -->
-          <rect class="f" x="24" y="104" width="330" height="252"/>
-          <text class="t" x="189" y="126" text-anchor="middle">Program</text>
-          <rect x="44" y="140" width="140" height="40"/>
-          <text class="t" x="114" y="165" text-anchor="middle">repo (code)</text>
-          <rect x="196" y="140" width="138" height="40"/>
-          <text class="m" x="265" y="160" text-anchor="middle">.pam/</text>
-          <text class="s" x="265" y="175" text-anchor="middle">config</text>
-          <rect x="44" y="188" width="290" height="46"/>
-          <text class="s" x="189" y="206" text-anchor="middle">Roles: ADA · Division Lead ·</text>
-          <text class="s" x="189" y="221" text-anchor="middle">Program Lead · Generic</text>
-          <rect x="44" y="240" width="290" height="92"/>
-          <text class="t" x="189" y="262" text-anchor="middle">Projects</text>
-          <text class="s" x="189" y="279" text-anchor="middle">epics that group issues</text>
-          <text class="s" x="189" y="295" text-anchor="middle">owned by a Division Lead</text>
-          <text class="s" x="189" y="311" text-anchor="middle">projected onto the tracking system</text>
-
-          <!-- ~/.pam -->
-          <rect class="f" x="24" y="384" width="330" height="72"/>
-          <text class="t" x="189" y="408" text-anchor="middle">~/.pam · your machine</text>
-          <text class="s" x="189" y="426" text-anchor="middle">Store (pam.db) + agent homes</text>
-          <text class="s" x="189" y="442" text-anchor="middle">per developer, never shared</text>
-
-          <!-- Runtime -->
-          <rect x="400" y="150" width="120" height="70"/>
-          <text class="t" x="460" y="174" text-anchor="middle">PAM Runtime</text>
-          <text class="s" x="460" y="192" text-anchor="middle">watch · decide</text>
-          <text class="s" x="460" y="208" text-anchor="middle">dispatch</text>
-
-          <!-- Team / Fleet -->
-          <rect x="392" y="258" width="136" height="76"/>
-          <text class="t" x="460" y="280" text-anchor="middle">Team / Fleet</text>
-          <text class="s" x="460" y="298" text-anchor="middle">Division Leads</text>
-          <text class="s" x="460" y="314" text-anchor="middle">ADA agents</text>
-
-          <!-- tracking system -->
-          <rect class="f" x="576" y="96" width="288" height="176"/>
-          <text class="t" x="720" y="118" text-anchor="middle">Project Tracking</text>
-          <text class="s" x="720" y="133" text-anchor="middle">Issues · pluggable</text>
-          <rect x="596" y="146" width="248" height="104"/>
-          <text class="t" x="720" y="166" text-anchor="middle">Project = epic</text>
-          <text class="s" x="720" y="181" text-anchor="middle">owned by a Division Lead</text>
-          <rect x="616" y="198" width="208" height="40"/>
-          <text class="t" x="720" y="223" text-anchor="middle">Issue</text>
-
-          <text class="lbl" x="720" y="285" text-anchor="middle">one product, or two</text>
-
-          <!-- development system -->
-          <rect class="f" x="576" y="296" width="288" height="148"/>
-          <text class="t" x="720" y="318" text-anchor="middle">Development System</text>
-          <text class="s" x="720" y="333" text-anchor="middle">PRs · pluggable</text>
-          <rect x="616" y="350" width="208" height="46"/>
-          <text class="t" x="720" y="371" text-anchor="middle">PR (draft)</text>
-          <text class="s" x="720" y="386" text-anchor="middle">review + CI</text>
-
-          <!-- edges -->
-          <path class="edge arrow dash" d="M250,70 L262,140"/>
-          <text class="lbl" x="300" y="100" text-anchor="middle">writes config</text>
-          <polyline class="edge arrow dash" points="92,44 14,44 14,418 24,418"/>
-          <text class="lbl" x="124" y="400" text-anchor="middle">records state</text>
-          <path class="edge arrow dash" d="M334,160 L400,164"/>
-          <text class="lbl" x="367" y="150" text-anchor="middle">reads config</text>
-          <path class="edge arrow dash" d="M400,220 L354,384"/>
-          <text class="lbl" x="372" y="322" text-anchor="middle">state</text>
-          <path class="edge arrow" d="M520,165 L574,165"/>
-          <text class="lbl" x="548" y="157" text-anchor="middle">polls</text>
-          <path class="edge arrow" d="M520,205 L574,335"/>
-          <text class="lbl" x="606" y="316" text-anchor="middle">reads PR + CI</text>
-          <path class="edge arrow" d="M460,220 L460,258"/>
-          <text class="lbl" x="500" y="242" text-anchor="middle">dispatch</text>
-          <path class="edge arrow" d="M528,280 L614,224"/>
-          <text class="lbl" x="598" y="252" text-anchor="middle">owns Issue</text>
-          <path class="edge arrow" d="M528,312 L614,368"/>
-          <text class="lbl" x="598" y="360" text-anchor="middle">updates PR</text>
-          <polyline class="edge arrow dash" points="334,290 380,239 560,239 596,212"/>
-          <text class="lbl" x="458" y="231" text-anchor="middle">projected onto the epic</text>
+          <rect x="16" y="44" width="120" height="54"/>
+          <text class="t" x="76" y="68" text-anchor="middle">People</text>
+          <text class="s" x="76" y="84" text-anchor="middle">who direct</text>
+          <rect x="184" y="44" width="110" height="54"/>
+          <text class="t" x="239" y="68" text-anchor="middle">pam</text>
+          <text class="s" x="239" y="84" text-anchor="middle">one tool</text>
+          <rect x="342" y="44" width="130" height="54"/>
+          <text class="t" x="407" y="68" text-anchor="middle">Program</text>
+          <text class="s" x="407" y="84" text-anchor="middle">a git repo</text>
+          <rect x="520" y="44" width="130" height="54"/>
+          <text class="t" x="585" y="68" text-anchor="middle">Fleet</text>
+          <text class="s" x="585" y="84" text-anchor="middle">of agents</text>
+          <rect x="698" y="44" width="106" height="54"/>
+          <text class="t" x="751" y="68" text-anchor="middle">Forge</text>
+          <text class="s" x="751" y="84" text-anchor="middle">project systems</text>
+          <path class="edge arrow" d="M136,71 L184,71"/>
+          <text class="lbl" x="160" y="63" text-anchor="middle">use</text>
+          <path class="edge arrow" d="M294,71 L342,71"/>
+          <text class="lbl" x="318" y="63" text-anchor="middle">configures</text>
+          <path class="edge arrow" d="M472,71 L520,71"/>
+          <text class="lbl" x="496" y="63" text-anchor="middle">staffs</text>
+          <path class="edge arrow" d="M650,71 L698,71"/>
+          <text class="lbl" x="674" y="63" text-anchor="middle">work on</text>
         </svg>
       </div>
-      <figcaption>The pieces of PAM. A developer drives the PAM CLI, which writes the Program config into
-      the repository's <span class="tt">.pam/</span> and records state in <span class="tt">~/.pam/</span>.
-      The PAM Runtime polls the project tracking system for work and reads pull-request and CI state from
-      the development system, then dispatches to the team: Division Leads and ADA agents. An ADA agent owns
-      an Issue in the tracking system and a PR in the development system, so its pair spans the two. A human
-      merges.</figcaption>
+      <figcaption>A few people direct a fleet of agents that carry work on a project. People use pam to configure a Program, a git repo; the Program staffs the fleet; the fleet works on the Forge, the project's systems. The figures that follow open up each part.</figcaption>
     </figure>
   </section>
 
@@ -264,7 +195,42 @@
     requests. Tracking system examples are Jira and GitHub Issues; when the repository's remote does not
     imply a forge such as GitHub, PAM falls back to local <span class="tt">cq</span> as the default
     tracking system. Development system examples are GitHub, GitLab, and Gerrit. An ADA agent owns an Issue
-    in the tracking system and a PR in the development system as a pair, so one unit of work spans both.</p>
+    in the tracking system and a PR in the development system as a pair, so one unit of work spans both. Figure&nbsp;3 shows the two systems side by side.</p>
+    <figure>
+      <div class="figbox figbox--plain">
+        <svg class="diagram" viewBox="0 0 820 270" role="img" aria-labelledby="f4t">
+          <title id="f4t">The Forge: two pluggable systems, a project tracking system for Issues and a development system for PRs, with one ADA owning an Issue in the first and a PR in the second.</title>
+          <rect class="f" x="24" y="48" width="300" height="200"/>
+          <text class="t" x="174" y="72" text-anchor="middle">Project Tracking</text>
+          <text class="s" x="174" y="88" text-anchor="middle">Issues · pluggable</text>
+          <rect x="44" y="108" width="260" height="122"/>
+          <text class="t" x="174" y="130" text-anchor="middle">Project = epic</text>
+          <rect x="64" y="158" width="220" height="54"/>
+          <text class="t" x="174" y="189" text-anchor="middle">Issue</text>
+
+          <rect class="f" x="496" y="48" width="300" height="200"/>
+          <text class="t" x="646" y="72" text-anchor="middle">Development</text>
+          <text class="s" x="646" y="88" text-anchor="middle">PRs · pluggable</text>
+          <rect x="516" y="128" width="260" height="84"/>
+          <text class="t" x="646" y="160" text-anchor="middle">PR (draft)</text>
+          <text class="s" x="646" y="178" text-anchor="middle">review + CI</text>
+
+          <text class="lbl" x="410" y="76" text-anchor="middle">one product, or two</text>
+          <rect x="356" y="120" width="108" height="60"/>
+          <text class="t" x="410" y="146" text-anchor="middle">ADA</text>
+          <text class="s" x="410" y="163" text-anchor="middle">owns the pair</text>
+
+          <path class="edge arrow" d="M356,160 L288,188"/>
+          <text class="lbl" x="320" y="212" text-anchor="middle">owns Issue</text>
+          <path class="edge arrow" d="M464,150 L514,158"/>
+          <text class="lbl" x="492" y="134" text-anchor="middle">updates PR</text>
+        </svg>
+      </div>
+      <figcaption>The Forge is two systems, configured separately. The project tracking system holds
+      Issues and the Project epic; the development system holds pull requests and review. They can be one
+      product or two. One ADA owns an Issue in the tracking system and a PR in the development system, so
+      its pair spans both.</figcaption>
+    </figure>
     <p class="note"><span class="h">Docs-first note.</span> The two-system split is the intended model. The
     shipped schema has a single <span class="tt">programs.tracker</span> field plus repos, and the forge
     adapter reads GitHub signals today. Splitting the configuration into a tracking system and a
@@ -301,8 +267,7 @@
     before the fix. It opens a draft pull request early, so the work is visible while in progress. It then
     tests in the real environment, which is not the same as the suite passing, and sorts every claim into
     what it ran and what it only read. Before marking the work ready it gets an adversarial review from a
-    subagent that inherits none of its context. It never merges; a human does that. Figure&nbsp;3 shows the
-    process.</p>
+    subagent that inherits none of its context. It never merges; a human does that. Figure&nbsp;4 shows the process.</p>
 
     <figure>
       <div class="figbox figbox--plain">
@@ -392,6 +357,11 @@
     so a lesson learned once does not have to be learned again. Open&nbsp;Library's is
     <span class="tt">ol-kb</span>. (A first-class Knowledge Base is planned, tracked on
     <a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>.)</p>
+    <p>The suggested format is Obsidian-style: plain markdown notes linked with wikilinks, the
+    <span class="tt">[[note]]</span> style, so it reads for a person and an agent alike and needs no special
+    tooling. A Program can also install a shared Knowledge Base from the registry, the way it would a Forge
+    plugin; the installed base lives at the Program level as <span class="tt">kb</span>. (The registry is
+    forward-looking, but this is the intended mechanism.)</p>
   </section>
 
   <section id="runtime">
@@ -406,7 +376,50 @@
     days triggers its Action once rather than every minute. It does this with a dedup key over the signals
     an Action cares about and a per-Action cooldown. (The decision core, with dedup, cooldown, and a
     dispatch interface, runs today in dry-run. The poll loop and live, health-gated dispatch are the next
-    build step, tracked on <a href="https://github.com/mekarpeles/PAM/issues/21">#21</a>.)</p>
+    build step, tracked on <a href="https://github.com/mekarpeles/PAM/issues/21">#21</a>.) Figure&nbsp;5 shows the event-to-action cycle.</p>
+
+    <figure>
+      <div class="figbox figbox--plain">
+        <svg class="diagram" viewBox="0 0 760 300" role="img" aria-labelledby="f5t">
+          <title id="f5t">The Runtime loop: the PAM Runtime polls the tracking system, matches an Action, dispatches to the fleet, and agents act on the Forge.</title>
+          <rect x="36" y="110" width="150" height="72"/>
+          <text class="t" x="111" y="138" text-anchor="middle">PAM Runtime</text>
+          <text class="s" x="111" y="156" text-anchor="middle">watch · decide</text>
+          <text class="s" x="111" y="172" text-anchor="middle">dispatch</text>
+
+          <rect x="300" y="44" width="200" height="56"/>
+          <text class="t" x="400" y="68" text-anchor="middle">Project Tracking</text>
+          <text class="s" x="400" y="84" text-anchor="middle">Issues + epics</text>
+
+          <rect x="300" y="124" width="200" height="68"/>
+          <text class="t" x="400" y="146" text-anchor="middle">Action</text>
+          <text class="s" x="400" y="162" text-anchor="middle">trigger + handler</text>
+          <text class="s" x="400" y="178" text-anchor="middle">fire once per change</text>
+
+          <rect x="560" y="124" width="170" height="68"/>
+          <text class="t" x="645" y="146" text-anchor="middle">Fleet</text>
+          <text class="s" x="645" y="162" text-anchor="middle">Division Leads</text>
+          <text class="s" x="645" y="178" text-anchor="middle">+ ADA agents</text>
+
+          <rect class="f" x="300" y="228" width="430" height="56"/>
+          <text class="t" x="515" y="252" text-anchor="middle">Forge</text>
+          <text class="s" x="515" y="268" text-anchor="middle">tracking + development systems</text>
+
+          <path class="edge arrow" d="M186,128 L300,78"/>
+          <text class="lbl" x="238" y="96" text-anchor="middle">polls (pull)</text>
+          <path class="edge arrow" d="M186,150 L300,152"/>
+          <text class="lbl" x="243" y="143" text-anchor="middle">matches</text>
+          <path class="edge arrow" d="M500,158 L560,158"/>
+          <text class="lbl" x="530" y="150" text-anchor="middle">deliver / spawn</text>
+          <path class="edge arrow" d="M645,192 L560,228"/>
+          <text class="lbl" x="628" y="214" text-anchor="middle">agents act</text>
+        </svg>
+      </div>
+      <figcaption>The Runtime loop. Each tick, the Runtime polls the tracking system for changes, matches
+      an Action (a trigger and a handler), dispatches to the fleet, and the agents act on the Forge. An
+      Action fires once per material change, not once per poll.</figcaption>
+    </figure>
+    
     <p>The arrow from the Runtime to the tracking system runs outward on purpose: the Runtime polls,
     pulling changes on its own schedule, and the results come back on the same request. The direction could
     be reversed only if those systems pushed events, through webhooks or a workflow, but then a durable,
