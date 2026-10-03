@@ -117,8 +117,8 @@
           <text class="s" x="701" y="334" text-anchor="middle">cq · sessions</text>
 
           <!-- edges -->
-          <path class="edge arrow" d="M174,80 L326,80"/>
-          <text class="lbl" x="250" y="72" text-anchor="middle">events</text>
+          <path class="edge arrow" d="M326,80 L178,80"/>
+          <text class="lbl" x="252" y="72" text-anchor="middle">polls</text>
           <path class="edge arrow" d="M500,74 L616,66"/>
           <text class="lbl" x="556" y="96" text-anchor="middle">deliver / spawn</text>
           <polyline class="edge arrow dash" points="708,36 708,18 99,18 99,52"/>
@@ -129,11 +129,17 @@
           <text class="lbl" x="560" y="210" text-anchor="middle">reads / writes state</text>
         </svg>
       </div>
-      <figcaption>The pieces of PAM. The Runtime watches the forge, dispatches work to agents that are
-      already running, and reads the authored config from the repository's <span class="tt">.pam/</span>
-      while recording state in <span class="tt">~/.pam/</span>. The agents open and update pull requests
-      on the forge; a human merges.</figcaption>
+      <figcaption>The pieces of PAM. The Runtime polls the forge for changes, dispatches work to agents
+      that are already running, and reads the authored config from the repository's
+      <span class="tt">.pam/</span> while recording state in <span class="tt">~/.pam/</span>. The agents
+      open and update pull requests on the forge; a human merges.</figcaption>
     </figure>
+    <p>The arrow between the Runtime and the forge runs from the Runtime to the forge on purpose: the
+    Runtime <em>polls</em>, pulling changes on its own schedule, and the results come back on the same
+    request. The direction could be reversed only if the forge pushed events, through webhooks or a
+    workflow, but then a durable, long-lived agent would have nothing holding it to receive them, and you
+    would not need the Runtime at all. PAM polls precisely because a persistent agent cannot depend on the
+    forge reaching it. That is the same reason an ephemeral runner does not fit this work.</p>
   </section>
 
   <section id="ada">
