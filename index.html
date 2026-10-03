@@ -66,90 +66,130 @@
 
     <figure>
       <div class="figbox figbox--plain">
-        <svg class="diagram" viewBox="0 0 820 430" role="img" aria-labelledby="f1t">
-          <title id="f1t">PAM system overview: the forge feeds the Runtime, which dispatches to agents; config lives in the repo and recorded state on your machine.</title>
+        <svg class="diagram" viewBox="0 0 880 470" role="img" aria-labelledby="f1t">
+          <title id="f1t">PAM system overview: a developer drives the PAM CLI, which writes the repo's .pam config and records state in ~/.pam; the PAM Runtime polls the Project-Management system and reads PR and CI state from the Work system; an ADA agent owns an Issue in the PM system and a PR in the Work system, so its pair spans the two; both systems are pluggable and may be one product or two.</title>
           <defs>
             <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
             </marker>
           </defs>
 
-          <!-- forge (pluggable; the chips are examples) -->
-          <rect x="24" y="40" width="172" height="96"/>
-          <text class="t" x="110" y="60" text-anchor="middle">Forge</text>
-          <text class="s" x="110" y="76" text-anchor="middle">pluggable; examples:</text>
-          <rect x="32" y="84" width="48" height="40"/>
-          <rect x="84" y="84" width="48" height="40"/>
-          <rect x="136" y="84" width="48" height="40"/>
-          <circle cx="56" cy="99" r="5" fill="currentColor"/>
-          <polygon points="108,93 114,105 102,105" fill="currentColor"/>
-          <polygon points="160,93 166,99 160,105 154,99" fill="currentColor"/>
-          <text class="s" x="56" y="119" text-anchor="middle">GitHub</text>
-          <text class="s" x="108" y="119" text-anchor="middle">GitLab</text>
-          <text class="s" x="160" y="119" text-anchor="middle">Jira</text>
+          <!-- developer + PAM CLI (the human entry point) -->
+          <circle cx="38" cy="30" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M22,54 a16,13 0 0 1 32,0" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <text class="s" x="38" y="72" text-anchor="middle">Developer</text>
+          <rect x="92" y="18" width="200" height="52"/>
+          <text class="t" x="192" y="42" text-anchor="middle">PAM CLI</text>
+          <text class="s" x="192" y="60" text-anchor="middle">pam init · onboard · status</text>
+          <path class="edge arrow" d="M56,38 L90,38"/>
+          <text class="lbl" x="72" y="30" text-anchor="middle">runs</text>
 
-          <!-- runtime -->
-          <rect x="330" y="48" width="170" height="68"/>
-          <text class="t" x="415" y="78" text-anchor="middle">PAM Runtime</text>
-          <text class="s" x="415" y="96" text-anchor="middle">watch · decide · dispatch</text>
+          <!-- Program (repo + .pam/), owning Teams and Projects -->
+          <rect class="f" x="24" y="104" width="340" height="252"/>
+          <text class="t" x="194" y="126" text-anchor="middle">Program</text>
+          <rect x="44" y="140" width="146" height="40"/>
+          <text class="t" x="117" y="165" text-anchor="middle">repo (code)</text>
+          <rect x="202" y="140" width="142" height="40"/>
+          <text class="m" x="273" y="160" text-anchor="middle">.pam/</text>
+          <text class="s" x="273" y="175" text-anchor="middle">Program config</text>
+          <rect x="44" y="196" width="300" height="66"/>
+          <text class="s" x="194" y="212" text-anchor="middle">Teams · agent types</text>
+          <rect x="52" y="220" width="86" height="32"/>
+          <text class="t" x="95" y="240" text-anchor="middle">ADA</text>
+          <rect x="146" y="220" width="108" height="32"/>
+          <text class="s" x="200" y="240" text-anchor="middle">Project Lead</text>
+          <rect x="262" y="220" width="78" height="32"/>
+          <text class="s" x="301" y="240" text-anchor="middle">Generic</text>
+          <rect x="44" y="272" width="300" height="72"/>
+          <text class="t" x="194" y="294" text-anchor="middle">Projects</text>
+          <text class="s" x="194" y="311" text-anchor="middle">owned by a Project Lead</text>
+          <text class="s" x="194" y="327" text-anchor="middle">projected onto a PM-system epic</text>
 
-          <!-- agents -->
-          <text class="lbl" x="708" y="30" text-anchor="middle">agents, each in its own worktree</text>
-          <rect x="620" y="40" width="176" height="44"/>
-          <text class="t" x="708" y="60" text-anchor="middle">ADA</text>
-          <text class="s" x="708" y="75" text-anchor="middle">owns one issue + PR</text>
-          <rect x="620" y="96" width="176" height="44"/>
-          <text class="t" x="708" y="116" text-anchor="middle">Project Lead</text>
-          <text class="s" x="708" y="131" text-anchor="middle">owns a Project</text>
-          <rect x="620" y="152" width="176" height="44"/>
-          <text class="t" x="708" y="172" text-anchor="middle">Generic</text>
-          <text class="s" x="708" y="187" text-anchor="middle">any other role</text>
+          <!-- ~/.pam: the Store (per machine) -->
+          <rect class="f" x="24" y="384" width="340" height="72"/>
+          <text class="t" x="194" y="408" text-anchor="middle">~/.pam · your machine</text>
+          <text class="s" x="194" y="426" text-anchor="middle">Store (pam.db) + agent homes</text>
+          <text class="s" x="194" y="442" text-anchor="middle">per developer, never shared</text>
 
-          <!-- repo container -->
-          <rect class="f" x="24" y="250" width="360" height="158"/>
-          <text class="t" x="204" y="276" text-anchor="middle">Program = a git repo</text>
-          <rect x="44" y="296" width="150" height="48"/>
-          <text class="m" x="119" y="318" text-anchor="middle">.pam/</text>
-          <text class="s" x="119" y="334" text-anchor="middle">shared config</text>
-          <rect x="214" y="296" width="150" height="48"/>
-          <text class="t" x="289" y="318" text-anchor="middle">Projects</text>
-          <text class="s" x="289" y="334" text-anchor="middle">epics</text>
+          <!-- PAM Runtime -->
+          <rect x="408" y="150" width="128" height="76"/>
+          <text class="t" x="472" y="176" text-anchor="middle">PAM Runtime</text>
+          <text class="s" x="472" y="194" text-anchor="middle">watch · decide</text>
+          <text class="s" x="472" y="210" text-anchor="middle">dispatch</text>
 
-          <!-- ~/.pam container -->
-          <rect class="f" x="436" y="250" width="360" height="158"/>
-          <text class="t" x="616" y="276" text-anchor="middle">~/.pam · your machine</text>
-          <rect x="456" y="296" width="150" height="48"/>
-          <text class="t" x="531" y="318" text-anchor="middle">Store</text>
-          <text class="m" x="531" y="334" text-anchor="middle">pam.db</text>
-          <rect x="626" y="296" width="150" height="48"/>
-          <text class="t" x="701" y="318" text-anchor="middle">agent homes</text>
-          <text class="s" x="701" y="334" text-anchor="middle">cq · sessions</text>
+          <!-- running ADA agent -->
+          <rect x="408" y="272" width="128" height="56"/>
+          <text class="t" x="472" y="294" text-anchor="middle">ADA agent</text>
+          <text class="s" x="472" y="310" text-anchor="middle">in a worktree</text>
+
+          <!-- Issues / Project Management system (pluggable) -->
+          <rect class="f" x="576" y="96" width="288" height="176"/>
+          <text class="t" x="720" y="118" text-anchor="middle">Issues / Project Mgmt</text>
+          <text class="s" x="720" y="133" text-anchor="middle">pluggable: GitHub Issues · Jira · Linear</text>
+          <rect x="596" y="146" width="248" height="104"/>
+          <text class="t" x="720" y="166" text-anchor="middle">Project = epic</text>
+          <text class="s" x="720" y="181" text-anchor="middle">managed by a Project Lead</text>
+          <rect x="616" y="198" width="208" height="40"/>
+          <text class="t" x="720" y="223" text-anchor="middle">Issue</text>
+
+          <text class="lbl" x="720" y="285" text-anchor="middle">one product, or two</text>
+
+          <!-- Work / PRs + review system (pluggable) -->
+          <rect class="f" x="576" y="296" width="288" height="148"/>
+          <text class="t" x="720" y="318" text-anchor="middle">Work / PRs + review</text>
+          <text class="s" x="720" y="333" text-anchor="middle">pluggable: GitHub · GitLab · Gerrit</text>
+          <rect x="616" y="350" width="208" height="46"/>
+          <text class="t" x="720" y="371" text-anchor="middle">PR (draft)</text>
+          <text class="s" x="720" y="386" text-anchor="middle">review + CI</text>
 
           <!-- edges -->
-          <path class="edge arrow" d="M326,84 L200,84"/>
-          <text class="lbl" x="263" y="76" text-anchor="middle">polls</text>
-          <path class="edge arrow" d="M500,74 L616,66"/>
-          <text class="lbl" x="556" y="96" text-anchor="middle">deliver / spawn</text>
-          <polyline class="edge arrow dash" points="708,36 708,18 110,18 110,40"/>
-          <text class="lbl" x="400" y="14" text-anchor="middle">open &amp; update PRs</text>
-          <path class="edge arrow dash" d="M352,116 L150,296"/>
-          <text class="lbl" x="214" y="210" text-anchor="middle">reads config</text>
-          <path class="edge arrow dash" d="M470,116 L536,296"/>
-          <text class="lbl" x="560" y="210" text-anchor="middle">reads / writes state</text>
+          <path class="edge arrow dash" d="M250,70 L270,140"/>
+          <text class="lbl" x="306" y="104" text-anchor="middle">writes config</text>
+          <polyline class="edge arrow dash" points="92,44 14,44 14,418 24,418"/>
+          <text class="lbl" x="126" y="400" text-anchor="middle">records state</text>
+          <path class="edge arrow dash" d="M344,160 L408,164"/>
+          <text class="lbl" x="376" y="150" text-anchor="middle">reads config</text>
+          <path class="edge arrow dash" d="M408,230 L360,384"/>
+          <text class="lbl" x="378" y="320" text-anchor="middle">state</text>
+          <path class="edge arrow" d="M536,165 L574,165"/>
+          <text class="lbl" x="554" y="157" text-anchor="middle">polls</text>
+          <path class="edge arrow" d="M472,226 L472,272"/>
+          <text class="lbl" x="462" y="252" text-anchor="middle">dispatch</text>
+          <path class="edge arrow" d="M536,214 L574,335"/>
+          <text class="lbl" x="606" y="316" text-anchor="middle">reads PR + CI</text>
+          <path class="edge arrow" d="M536,284 L614,222"/>
+          <text class="lbl" x="598" y="252" text-anchor="middle">owns Issue</text>
+          <path class="edge arrow" d="M536,318 L614,366"/>
+          <text class="lbl" x="598" y="360" text-anchor="middle">updates PR</text>
+          <polyline class="edge arrow dash" points="344,280 386,249 560,249 596,212"/>
+          <text class="lbl" x="470" y="242" text-anchor="middle">projected onto the epic</text>
         </svg>
       </div>
-      <figcaption>The pieces of PAM. The PAM Runtime polls the forge for changes, dispatches work to
-      agents that are already running, and reads the authored config from the repository's
-      <span class="tt">.pam/</span> while recording state in <span class="tt">~/.pam/</span>. The forge is
-      pluggable; GitHub, GitLab, and Jira are examples. The agents open and update pull requests on the
-      forge; a human merges.</figcaption>
+      <figcaption>The pieces of PAM. A developer drives the PAM CLI, which writes the Program config into
+      the repository's <span class="tt">.pam/</span> and records state in <span class="tt">~/.pam/</span>.
+      The PAM Runtime polls the Project-Management system for work and reads pull-request and CI state from
+      the Work system, then dispatches to a running ADA agent. That agent owns an Issue in the PM system
+      and a PR in the Work system, so its pair spans the two. A human merges.</figcaption>
     </figure>
-    <p>The arrow between the Runtime and the forge runs from the Runtime to the forge on purpose: the
-    Runtime <em>polls</em>, pulling changes on its own schedule, and the results come back on the same
-    request. The direction could be reversed only if the forge pushed events, through webhooks or a
-    workflow, but then a durable, long-lived agent would have nothing holding it to receive them, and you
-    would not need the Runtime at all. PAM polls precisely because a persistent agent cannot depend on the
-    forge reaching it. That is the same reason an ephemeral runner does not fit this work.</p>
+    <p>PAM treats <em>Issues and Project management</em> and <em>Work, pull requests, and review</em> as
+    two distinct systems, each configured separately on the Program. They can be one product, since GitHub
+    does both, or two, for example Jira for issues and GitHub for pull requests. Projects and their Issues
+    live in the Project-Management system, where a Project Lead manages them; pull requests and review live
+    in the Work system. An ADA agent owns an Issue from the first and a PR in the second, as a pair, so a
+    single unit of ADA's work spans both systems. The Runtime polls the Project-Management system for
+    changes and reads pull-request and CI state from the Work system.</p>
+    <p class="note"><span class="h">Docs-first note.</span> This clean two-system separation is the
+    intended model. The shipped schema currently has a single <span class="tt">programs.tracker</span>
+    field plus repos, so splitting the configuration into a Project-Management system and a Work system is
+    filed on <a href="https://github.com/mekarpeles/PAM/issues/35">#35</a> to reconcile the code to the
+    model.</p>
+    <p>The arrow between the Runtime and the Project-Management system runs from the Runtime outward on
+    purpose: the Runtime <em>polls</em>, pulling changes on its own schedule, and the results come back on
+    the same request. The direction could be reversed only if those systems pushed events, through
+    webhooks or a workflow, but then a durable, long-lived agent would have nothing holding it to receive
+    them, and you would not need the Runtime at all. PAM polls precisely because a persistent agent cannot
+    depend on a remote system reaching it. That is the same reason an ephemeral runner does not fit this
+    work.</p>
   </section>
 
   <section id="ada">
@@ -262,15 +302,17 @@
     <a href="https://github.com/mekarpeles/PAM/issues/35">#35</a> to reconcile the names rather than paper
     over them.</p>
     <p><strong>Projects are the units of work.</strong> A Project is a unit of work owned by a Project
-    Lead and worked by ADA agents on its parts. In a GitHub-backed Program a Project is projected onto an
-    epic issue, with its pieces as sub-issues, but the epic is only how the Project appears on one
-    tracker. The concept is the unit of work; the epic is its projection.</p>
-    <p><strong>The Runtime drives the fleet.</strong> The Runtime watches a Program's issues and pull
-    requests, decides what is actionable, and dispatches through <em>Actions</em>. An Action is a trigger
-    (an event or a schedule) plus a handler (deliver to an existing agent, spawn one, run a skill, or run
-    a script). It delivers to an agent that already exists rather than starting a fresh container each
-    time. The Runtime is covered in Section&nbsp;IV and its own design note; what matters here is that it
-    is the piece that turns a change on the forge into work for an agent.</p>
+    Lead and worked by ADA agents on its parts. A Project and its Issues live in the Program's
+    Project-Management system; in a GitHub-backed Program the Project is projected onto an epic issue, with
+    its pieces as sub-issues. The epic is only how the Project appears in that system; the concept is the
+    unit of work.</p>
+    <p><strong>The Runtime drives the fleet.</strong> The Runtime polls the Project-Management system for
+    work and reads pull-request and CI state from the Work system, decides what is actionable, and
+    dispatches through <em>Actions</em>. An Action is a trigger (an event or a schedule) plus a handler
+    (deliver to an existing agent, spawn one, run a skill, or run a script). It delivers to an agent that
+    already exists rather than starting a fresh container each time. The Runtime is covered in
+    Section&nbsp;IV and its own design note; what matters here is that it is the piece that turns a change
+    in those systems into work for an agent.</p>
     <p><strong>Program configuration is per project.</strong> Each Program carries its own configuration:
     the Oracle checks for this project, the ADA setup, the roles and labels, the Actions, and the
     label-to-state map. It is authored text in the repository, so it is reviewed through the same pull
@@ -340,8 +382,9 @@
     per agent under <span class="tt">agents/&lt;id&gt;/</span>, which keeps that agent's identity file, its
     sessions, its ledger, its received messages, and its <span class="tt">cq</span>.</p>
     <p><strong>cq, concretely.</strong> <span class="tt">cq</span> is an ADA agent's own issue tracker,
-    one small SQLite queue per agent for the work it is tracking for itself, separate from the forge
-    issues it is assigned. It lives inside the agent's home under <span class="tt">~/.pam/</span>, on the
+    one small SQLite queue per agent for the work it is tracking for itself, separate from the Issues it is
+    assigned in the Project-Management system. It lives inside the agent's home under
+    <span class="tt">~/.pam/</span>, on the
     recorded side, because it is local working state that means nothing to a teammate. An agent reads and
     writes its own <span class="tt">cq</span>; no one else's.</p>
     <p>The Store is recorded fact, so it can always be rebuilt and is never committed to git. Each agent
@@ -364,19 +407,19 @@ pam init                         # create .pam/ here; register the Program in ~/
 pam agent onboard tags-lead --program openlibrary --role division_lead
 pam agent onboard ada-13842 --program openlibrary --role ada_agent --reports-to tags-lead
 
-# a Project (a forge epic) and an ADA agent on one of its sub-issues
+# a Project (an epic) and an ADA agent on one of its sub-issues
 pam project add "Tags" --program openlibrary --lead tags-lead --epic 13755 --year 2026
 pam project assign "Tags" --agent ada-13842 --sub 13842 --by tags-lead
 
 # read state back
 pam status                       # your Programs and their leads
-pam agent state ada-13842        # computed work state from forge signals
+pam agent state ada-13842        # computed work state from pull-request and CI signals
 pam agent ledger ada-13842       # per-requirement ledger: done / stale / asserted / open vs HEAD
 pam project state "Tags"         # the epic rollup and each agent's state</pre>
     <p>A name that is already live cannot be onboarded again, because reusing a name must never merge two
     agents' histories; retire the old one first with <span class="tt">pam agent retire</span>. The state
-    commands read live signals from the forge and the agent's ledger and report the position against the
-    current commit, never as a bare percentage. Other commands fill out the same surface:
+    commands read live pull-request, CI, and ledger signals and report the position against the current
+    commit, never as a bare percentage. Other commands fill out the same surface:
     <span class="tt">pam role ls</span>, <span class="tt">pam agent ls</span>,
     <span class="tt">pam membership ls</span>, <span class="tt">pam team add</span>, and
     <span class="tt">pam program show</span>.</p>
