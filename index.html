@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAM — Project Agentic Management</title>
-<meta name="description" content="PAM: a general-purpose, SQLite-backed registry and event-to-action engine for running fleets of long-lived AI agents against real projects — the next generation of Open Library's ADA.">
+<meta name="description" content="PAM: a general-purpose, SQLite-backed Registry and event-to-action Runtime for running fleets of long-lived AI agents against real projects — the next generation of Open Library's ADA.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fcfcf9'/%3E%3Ctext x='50' y='76' font-size='64' font-weight='700' text-anchor='middle' fill='%231a1a1a' font-family='Georgia,serif'%3EP%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,9 +16,9 @@
   <a href="#overview">I &middot; Overview</a>
   <a href="#from-ada">II &middot; From ADA to PAM</a>
   <a href="#architecture">III &middot; Architecture</a>
-  <a href="#registry">IV &middot; The registry</a>
-  <a href="#engine">V &middot; Engine &amp; actions</a>
-  <a href="#bundle">VI &middot; Shareable Programs</a>
+  <a href="#registry">IV &middot; The Registry</a>
+  <a href="#runtime">V &middot; Runtime &amp; Actions</a>
+  <a href="#bundle">VI &middot; Programs, Oracle &amp; KB</a>
   <a href="#boundaries">VII &middot; Boundaries &amp; invariants</a>
   <a href="#discussion">VIII &middot; Discussion</a>
   <a href="#refs">References</a>
@@ -40,13 +40,15 @@
       <a href="https://openlibrary.org">Open&nbsp;Library</a>. ADA demonstrated that constrained,
       transparent, human-gated LLM agents can carry high-volume work from a filed issue to a merged
       change; but its machinery was entangled with Open&nbsp;Library specifics and with one terminal
-      multiplexer. PAM factors the durable parts out into three layers: a <em>registry</em> (a local,
+      multiplexer. PAM factors the durable parts out into three layers: a <em>Registry</em> (a local,
       SQLite-backed record of Programs, first-class agents, memberships, roles, and projects, keyed by
-      stable ULID identity); an <em>engine and actions runtime</em> (an event&rarr;action dispatcher,
-      modeled on GitHub Actions but able to deliver work to an agent that already exists rather than
-      spawning an ephemeral container); and a shareable <em>config bundle</em> (<span class="tt">pam&#8209;{program}</span>
-      git repos — the Docker-Hub/PyPI model for agent teams). Open&nbsp;Library becomes one
-      <em>Program</em> among many. We motivate the design against the founding constraint — why a
+      stable ULID identity); a <em>Runtime</em> (an event&rarr;action execution layer — watch event
+      sources, decide, dispatch to durable agents — whose plugins are <em>Actions</em>, modeled on
+      GitHub Actions but able to deliver work to an agent that already exists rather than spawning an
+      ephemeral container); and shareable <em>Programs</em> (<span class="tt">pam&#8209;{program}</span>
+      git repos — the Docker-Hub/PyPI model for agent teams — each bundling repos, a shared
+      <em>Knowledge&nbsp;Base</em>, an <em>Oracle</em> verification definition, roles, and Actions).
+      Open&nbsp;Library becomes one <em>Program</em> among many. We motivate the design against the founding constraint — why a
       workflow runner cannot keep an expensive, worktree-holding agent alive across a PR's lifetime —
       and state the invariants (notably <span class="tt">pip install pam</span> on a host with no tmux)
       that keep the layers from re-merging.</p>
@@ -65,21 +67,26 @@
     itself are others. Nothing in the core is Open-Library-specific.</p>
     <p class="note"><span class="h">Outline note.</span> This section will mirror ADA&nbsp;&sect;Overview:
     a one-paragraph statement of what the system is, a component figure, and the paths between the
-    registry, the engine, and the config bundle. Figure&nbsp;1 (to draw) is the three-layer diagram with
-    the forge (GitHub) as the event source on the left and live agents on the right.</p>
+    Registry, the Runtime, and the Program bundle. Figure&nbsp;1 (to draw) is the three-layer diagram
+    with the forge (GitHub) as the event source on the left and live agents in isolated worktrees on the
+    right. (Canonical names: see the <span class="tt">pam-framework</span> README, &ldquo;The parts of
+    PAM (names)&rdquo;.)</p>
   </section>
 
   <section id="from-ada">
     <h2>From ADA to PAM</h2>
-    <p>ADA proved the shape of the work: atomic, isolated, human-merged units carried by short-lived
-    agents, with a shared knowledge base and explicit interfaces. Three forces drove the rewrite.</p>
-    <p><strong>cmux reduces to a multiplexer.</strong> In ADA, cmux carried session mechanics,
-    identity, an inbox, and more. In PAM, cmux is only a tool for multiplexing Claude
-    sessions/workspaces; identity and lifecycle move up into PAM. <strong>Claude now has native
-    <span class="tt">SendMessage</span></strong>, so inter-agent messaging no longer needs a bespoke
-    socket layer (claudio) as its primitive. <strong><span class="tt">cq</span> and identity/lifecycle
-    fold into PAM</strong>: per-agent work tracking, stable identity, onboarding, and retirement become
-    first-class registry concerns rather than scattered files.</p>
+    <p><strong>What carries over.</strong> Much of ADA's philosophy is retained deliberately: <em>atomic
+    agents</em> (one unit of work, carried end to end), the shared <em>Knowledge&nbsp;Base</em> read
+    before a task and written back after, isolated <em>worktrees</em> so half-finished changes never
+    collide, human-gated merges, and the event&rarr;<em>action</em> model. PAM keeps the shape of the
+    work ADA proved; it changes where the machinery lives.</p>
+    <p><strong>What changes.</strong> <span class="tt">cq</span> (per-agent work tracking),
+    identity/lifecycle, and the action system move <em>into</em> PAM — the first two into the Registry,
+    the action system into the Runtime. <strong>cmux reduces to a multiplexer</strong>: in ADA it
+    carried session mechanics, identity, and an inbox; in PAM it is only a tool for multiplexing Claude
+    sessions/workspaces. <strong>Claude's native <span class="tt">SendMessage</span> replaces the old
+    <span class="tt">cmux-send</span> messaging</strong>, so inter-agent messaging no longer needs a
+    bespoke socket layer as its primitive.</p>
     <p class="note"><span class="h">Outline note.</span> Draw the explicit before/after table: for each
     responsibility (identity, messaging, task tracking, resume, spawn), where it lived in ADA vs. where
     it lives in PAM. This is the paper's central &ldquo;what changed and why&rdquo; artifact.</p>
@@ -87,12 +94,13 @@
 
   <section id="architecture">
     <h2>Architecture</h2>
-    <p>PAM is three layers. <strong>(1) The registry</strong> — local SQLite in <span class="tt">~/.pam/</span>,
-    the identity-and-policy layer. <strong>(2) The engine + actions</strong> — the runtime that polls the
-    issue/PR environment and turns change into action. <strong>(3) The config bundle</strong> — a
-    Program's authored setup, version-controlled as text in a <span class="tt">pam&#8209;{program}</span>
-    repo. The layers are held apart by a single invariant (&sect;VII) and by the authored-vs-recorded
-    split that runs through all three.</p>
+    <p>PAM is three layers. <strong>(1) The Registry</strong> — local SQLite in <span class="tt">~/.pam/</span>,
+    the identity-and-policy store of recorded state. <strong>(2) The Runtime</strong> — the execution
+    layer that watches event sources, decides what is actionable, and dispatches to durable agents; its
+    plugins are <em>Actions</em>. <strong>(3) The Program</strong> — a configured instance's authored
+    setup (repos, Knowledge&nbsp;Base, Oracle definition, roles, Actions, config), version-controlled as
+    text in a <span class="tt">pam&#8209;{program}</span> repo. The layers are held apart by a single
+    invariant (&sect;VII) and by the authored-vs-recorded split that runs through all three.</p>
   </section>
 
   <section id="registry">
@@ -109,11 +117,11 @@
     <span class="tt">docs/registry-design.md</span> and <span class="tt">docs/plan.md</span>.</p>
   </section>
 
-  <section id="engine">
-    <h2>Engine &amp; actions</h2>
-    <p>The engine is the reason PAM exists. It polls or subscribes to the forge, decides what is
-    actionable, and triggers <em>actions</em> — plugins modeled on GitHub Actions: a <em>trigger</em>
-    (<span class="tt">on:</span> an event, or a schedule) plus a <em>handler</em>
+  <section id="runtime">
+    <h2>Runtime &amp; Actions</h2>
+    <p>The Runtime is the reason PAM exists. It watches event sources (polls or subscribes to the forge),
+    decides what is actionable, and dispatches <em>Actions</em> — its plugins, modeled on GitHub Actions:
+    a <em>trigger</em> (<span class="tt">on:</span> an event, or a schedule) plus a <em>handler</em>
     (deliver-to-an-existing-agent, spawn, run-a-skill, run-a-script).</p>
     <p><strong>Why not GitHub Actions</strong> — the founding constraint. A workflow run is ephemeral:
     it gets a container, does a thing, and is destroyed. A development agent is the opposite — expensive
@@ -121,21 +129,31 @@
     opens until it merges</em>. An Action cannot keep an agent alive; the most it carries across runs is
     a pointer to an environment it cannot hold. And some work (a scheduled check against infrastructure
     with no runners, a secrets-bound host, a private config repo) cannot run in an Action at all. So the
-    event source is remote and execution must be local and durable; the engine is the bridge, and it
+    event source is remote and execution must be local and durable; the Runtime is the bridge, and it
     <em>messages an agent that already exists</em> rather than starting one. Where an Action works, use
     an Action.</p>
-    <p class="note"><span class="h">Outline note.</span> Figure: the poll&rarr;decide&rarr;deliver loop,
-    with the dry-run decision core (tmux-free) separated from the delivery seam (cmux/claudio). Tie to
-    epic&nbsp;#21 and the prior polling-loop seeds.</p>
+    <p class="note"><span class="h">Outline note.</span> Figure: the watch&rarr;decide&rarr;dispatch
+    loop, with the dry-run decision core (tmux-free) separated from the delivery seam (cmux multiplexer +
+    native SendMessage). Tie to epic&nbsp;#21 and the prior polling-loop seeds.</p>
   </section>
 
   <section id="bundle">
-    <h2>Shareable Programs</h2>
-    <p>An operator should be able to hand a whole team setup to someone else. PAM makes a Program's
-    <em>config</em> serializable to a git repo (e.g. <span class="tt">pam&#8209;openlibrary</span>) — the
-    Docker-Hub/PyPI model for agent teams. <strong>Shared</strong> (text, in the repo): roles and
-    Division-Lead templates, skills, oracle configs, actions, recipes, the label&rarr;state map, and the
-    pinned versions of PAM/ADA/Oracle it builds on. <strong>Never shared</strong> (local, in SQLite):
+    <h2>Programs, Oracle &amp; the Knowledge Base</h2>
+    <p>A <em>Program</em> is a configured instance (Open&nbsp;Library, Lenny, PAM-itself). It bundles its
+    repos, a shared <em>Knowledge&nbsp;Base</em>, an <em>Oracle</em> definition, roles, Actions, and
+    config. Two of these deserve their own names. The <strong>Knowledge&nbsp;Base (KB)</strong> is a
+    Program-level shared knowledge repo (Open&nbsp;Library's is <span class="tt">ol-kb</span>) — authored,
+    shared, read before a task and written back after; it is the direct descendant of ADA's Obsidian
+    vault (see issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>). The
+    <strong>Oracle</strong> is the verification layer: a Program's Oracle <em>definition</em> — an
+    ordered set of guard states — is how PAM determines an agent's state for a Project (which guard is
+    the first unsatisfied one). Oracle is external, pinned, and not vendored (&sect;VII).</p>
+    <p><strong>Programs are shareable.</strong> An operator should be able to hand a whole team setup to
+    someone else. PAM makes a Program's <em>config</em> serializable to a git repo (e.g.
+    <span class="tt">pam&#8209;openlibrary</span>) — the Docker-Hub/PyPI model for agent teams.
+    <strong>Shared</strong> (text, in the repo): roles and Division-Lead templates, skills, the Oracle
+    definition, Actions, recipes, the label&rarr;state map, the KB, and the pinned versions of
+    PAM/ADA/Oracle it builds on. <strong>Never shared</strong> (local, in SQLite):
     which agents exist, their sessions, who claimed which issue — recorded state, useless or misleading
     to a teammate whose work hasn't started. Clone &rarr; <span class="tt">pam program install</span>
     &rarr; bind local values &rarr; staff it with <em>your</em> agents. A <span class="tt">.db</span> is
@@ -149,7 +167,8 @@
     PAM folds in (ADA becomes a built-in agent-type + a progress renderer + an onboarding recipe).</p>
     <p><strong>The no-tmux invariant.</strong> <span class="tt">pip install pam &amp;&amp; pam program
     add &hellip;</span> works on a machine with no tmux. PAM never imports cmux; cmux uses PAM. The
-    engine's decision core is tmux-free and runs in dry-run; delivery goes through the cmux/claudio seam.
+    Runtime's decision core is tmux-free and runs in dry-run; delivery goes through the cmux multiplexer
+    seam.
     A test keeps this green.</p>
     <p><strong>Hierarchy is organizational, not a runtime delegation path.</strong> The
     <span class="tt">reports_to</span> edge is an org-chart label; PAM does not build multi-hop real-time
@@ -161,7 +180,7 @@
     <h2>Discussion &amp; open questions</h2>
     <p class="note"><span class="h">Outline note.</span> This section records where PAM's design is still
     unsettled and invites critique: the scope of the registry vs. a minimal v1, the authored/recorded
-    boundary under concurrency, the engine's delivery semantics (at-least-once? dedup?), and how the
+    boundary under concurrency, the Runtime's delivery semantics (at-least-once? dedup?), and how the
     publish/install model handles secrets and local binding. See the companion issue thread on
     <a href="https://github.com/mekarpeles/PAM/issues/33">#33</a> for the live question list.</p>
   </section>
