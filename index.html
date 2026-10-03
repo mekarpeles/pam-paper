@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAM — Project Agentic Management</title>
+<meta name="description" content="PAM: a general-purpose, SQLite-backed registry and event-to-action engine for running fleets of long-lived AI agents against real projects — the next generation of Open Library's ADA.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fcfcf9'/%3E%3Ctext x='50' y='76' font-size='64' font-weight='700' text-anchor='middle' fill='%231a1a1a' font-family='Georgia,serif'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark" title="Toggle light/dark">◐</button>
+
+<nav class="toc" id="toc" aria-label="Contents">
+  <p class="h">Contents</p>
+  <a href="#overview">I &middot; Overview</a>
+  <a href="#from-ada">II &middot; From ADA to PAM</a>
+  <a href="#architecture">III &middot; Architecture</a>
+  <a href="#registry">IV &middot; The registry</a>
+  <a href="#engine">V &middot; Engine &amp; actions</a>
+  <a href="#bundle">VI &middot; Shareable Programs</a>
+  <a href="#boundaries">VII &middot; Boundaries &amp; invariants</a>
+  <a href="#discussion">VIII &middot; Discussion</a>
+  <a href="#refs">References</a>
+</nav>
+
+<article class="paper">
+
+  <!-- ===== Title block ===== -->
+  <header class="titleblock">
+    <h1>PAM: Project Agentic Management</h1>
+    <p class="author">Michael E. Karpeles (Mek), Internet Archive&nbsp;&nbsp;&lt;<a href="mailto:mek@archive.org">mek@archive.org</a>&gt;</p>
+    <p class="date">Internal engineering note &middot; 2026 &middot; <em>working draft</em></p>
+
+    <div class="abstract">
+      <span class="h">Abstract</span>
+      <p>This paper describes <em>PAM</em> (Project Agentic Management), a general-purpose system for
+      running a fleet of long-lived AI agents against real software projects. PAM is the successor to
+      <a href="https://mek.fyi/papers/ada">ADA</a>, the automation pipeline that maintains
+      <a href="https://openlibrary.org">Open&nbsp;Library</a>. ADA demonstrated that constrained,
+      transparent, human-gated LLM agents can carry high-volume work from a filed issue to a merged
+      change; but its machinery was entangled with Open&nbsp;Library specifics and with one terminal
+      multiplexer. PAM factors the durable parts out into three layers: a <em>registry</em> (a local,
+      SQLite-backed record of Programs, first-class agents, memberships, roles, and projects, keyed by
+      stable ULID identity); an <em>engine and actions runtime</em> (an event&rarr;action dispatcher,
+      modeled on GitHub Actions but able to deliver work to an agent that already exists rather than
+      spawning an ephemeral container); and a shareable <em>config bundle</em> (<span class="tt">pam&#8209;{program}</span>
+      git repos — the Docker-Hub/PyPI model for agent teams). Open&nbsp;Library becomes one
+      <em>Program</em> among many. We motivate the design against the founding constraint — why a
+      workflow runner cannot keep an expensive, worktree-holding agent alive across a PR's lifetime —
+      and state the invariants (notably <span class="tt">pip install pam</span> on a host with no tmux)
+      that keep the layers from re-merging.</p>
+    </div>
+    <hr class="rule-full">
+  </header>
+
+  <div class="twocol">
+
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>PAM runs a fleet of long-lived AI agents against real projects. An operator configures a
+    <em>Program</em> — a project, its repos, its team, its tooling — and PAM keeps those agents fed from
+    the events that matter (a new issue, a PR, a review request, a scheduled check) while tracking who
+    the agents are and what they are doing. Open&nbsp;Library is one Program; Lenny, Petabox, and PAM
+    itself are others. Nothing in the core is Open-Library-specific.</p>
+    <p class="note"><span class="h">Outline note.</span> This section will mirror ADA&nbsp;&sect;Overview:
+    a one-paragraph statement of what the system is, a component figure, and the paths between the
+    registry, the engine, and the config bundle. Figure&nbsp;1 (to draw) is the three-layer diagram with
+    the forge (GitHub) as the event source on the left and live agents on the right.</p>
+  </section>
+
+  <section id="from-ada">
+    <h2>From ADA to PAM</h2>
+    <p>ADA proved the shape of the work: atomic, isolated, human-merged units carried by short-lived
+    agents, with a shared knowledge base and explicit interfaces. Three forces drove the rewrite.</p>
+    <p><strong>cmux reduces to a multiplexer.</strong> In ADA, cmux carried session mechanics,
+    identity, an inbox, and more. In PAM, cmux is only a tool for multiplexing Claude
+    sessions/workspaces; identity and lifecycle move up into PAM. <strong>Claude now has native
+    <span class="tt">SendMessage</span></strong>, so inter-agent messaging no longer needs a bespoke
+    socket layer (claudio) as its primitive. <strong><span class="tt">cq</span> and identity/lifecycle
+    fold into PAM</strong>: per-agent work tracking, stable identity, onboarding, and retirement become
+    first-class registry concerns rather than scattered files.</p>
+    <p class="note"><span class="h">Outline note.</span> Draw the explicit before/after table: for each
+    responsibility (identity, messaging, task tracking, resume, spawn), where it lived in ADA vs. where
+    it lives in PAM. This is the paper's central &ldquo;what changed and why&rdquo; artifact.</p>
+  </section>
+
+  <section id="architecture">
+    <h2>Architecture</h2>
+    <p>PAM is three layers. <strong>(1) The registry</strong> — local SQLite in <span class="tt">~/.pam/</span>,
+    the identity-and-policy layer. <strong>(2) The engine + actions</strong> — the runtime that polls the
+    issue/PR environment and turns change into action. <strong>(3) The config bundle</strong> — a
+    Program's authored setup, version-controlled as text in a <span class="tt">pam&#8209;{program}</span>
+    repo. The layers are held apart by a single invariant (&sect;VII) and by the authored-vs-recorded
+    split that runs through all three.</p>
+  </section>
+
+  <section id="registry">
+    <h2>The registry</h2>
+    <p>The registry records <em>Programs</em> (which own repos), <em>agents</em> (first-class and
+    Program-independent, with a stable ULID id and a reusable display name), <em>memberships</em> (an
+    agent joins a Program with a role and a reporting line), <em>roles</em> (a seedable catalog), and
+    <em>projects</em> (units of work; a project is a forge epic). Identity is a surrogate ULID, separate
+    from the mutable display name, so reusing a name can never merge two agents' histories — enforced by
+    a partial-unique index on active names. Only <em>recorded</em> facts live in SQLite; the
+    <em>authored</em> config is read live from the repo and never cached.</p>
+    <p class="note"><span class="h">Outline note.</span> Include the schema-at-a-glance table and the
+    stable-id rationale (ULID vs. uuid4; why name-as-PK was the bug). Draw from
+    <span class="tt">docs/registry-design.md</span> and <span class="tt">docs/plan.md</span>.</p>
+  </section>
+
+  <section id="engine">
+    <h2>Engine &amp; actions</h2>
+    <p>The engine is the reason PAM exists. It polls or subscribes to the forge, decides what is
+    actionable, and triggers <em>actions</em> — plugins modeled on GitHub Actions: a <em>trigger</em>
+    (<span class="tt">on:</span> an event, or a schedule) plus a <em>handler</em>
+    (deliver-to-an-existing-agent, spawn, run-a-skill, run-a-script).</p>
+    <p><strong>Why not GitHub Actions</strong> — the founding constraint. A workflow run is ephemeral:
+    it gets a container, does a thing, and is destroyed. A development agent is the opposite — expensive
+    to set up, holding a worktree and accumulated context, and it must survive <em>from the moment a PR
+    opens until it merges</em>. An Action cannot keep an agent alive; the most it carries across runs is
+    a pointer to an environment it cannot hold. And some work (a scheduled check against infrastructure
+    with no runners, a secrets-bound host, a private config repo) cannot run in an Action at all. So the
+    event source is remote and execution must be local and durable; the engine is the bridge, and it
+    <em>messages an agent that already exists</em> rather than starting one. Where an Action works, use
+    an Action.</p>
+    <p class="note"><span class="h">Outline note.</span> Figure: the poll&rarr;decide&rarr;deliver loop,
+    with the dry-run decision core (tmux-free) separated from the delivery seam (cmux/claudio). Tie to
+    epic&nbsp;#21 and the prior polling-loop seeds.</p>
+  </section>
+
+  <section id="bundle">
+    <h2>Shareable Programs</h2>
+    <p>An operator should be able to hand a whole team setup to someone else. PAM makes a Program's
+    <em>config</em> serializable to a git repo (e.g. <span class="tt">pam&#8209;openlibrary</span>) — the
+    Docker-Hub/PyPI model for agent teams. <strong>Shared</strong> (text, in the repo): roles and
+    Division-Lead templates, skills, oracle configs, actions, recipes, the label&rarr;state map, and the
+    pinned versions of PAM/ADA/Oracle it builds on. <strong>Never shared</strong> (local, in SQLite):
+    which agents exist, their sessions, who claimed which issue — recorded state, useless or misleading
+    to a teammate whose work hasn't started. Clone &rarr; <span class="tt">pam program install</span>
+    &rarr; bind local values &rarr; staff it with <em>your</em> agents. A <span class="tt">.db</span> is
+    never checked into git; it is regenerated on install.</p>
+  </section>
+
+  <section id="boundaries">
+    <h2>Boundaries &amp; invariants</h2>
+    <p><strong>Fold-in vs. depend-on.</strong> A tool useful on its own stays its own repo and PAM
+    depends on it, pinned (Oracle, a general verification runner); a tool that only makes sense inside
+    PAM folds in (ADA becomes a built-in agent-type + a progress renderer + an onboarding recipe).</p>
+    <p><strong>The no-tmux invariant.</strong> <span class="tt">pip install pam &amp;&amp; pam program
+    add &hellip;</span> works on a machine with no tmux. PAM never imports cmux; cmux uses PAM. The
+    engine's decision core is tmux-free and runs in dry-run; delivery goes through the cmux/claudio seam.
+    A test keeps this green.</p>
+    <p><strong>Hierarchy is organizational, not a runtime delegation path.</strong> The
+    <span class="tt">reports_to</span> edge is an org-chart label; PAM does not build multi-hop real-time
+    agent-to-agent delegation (deep hierarchies lose information at each boundary). Runtime delegation
+    stays &le;2 levels.</p>
+  </section>
+
+  <section id="discussion">
+    <h2>Discussion &amp; open questions</h2>
+    <p class="note"><span class="h">Outline note.</span> This section records where PAM's design is still
+    unsettled and invites critique: the scope of the registry vs. a minimal v1, the authored/recorded
+    boundary under concurrency, the engine's delivery semantics (at-least-once? dedup?), and how the
+    publish/install model handles secrets and local binding. See the companion issue thread on
+    <a href="https://github.com/mekarpeles/PAM/issues/33">#33</a> for the live question list.</p>
+  </section>
+
+  <section id="refs" class="refs">
+    <h2>References</h2>
+    <ol>
+      <li><a href="https://mek.fyi/papers/ada">ADA: Atomic Development Agents &amp; the Open Library</a> &mdash; the prior-generation writeup this paper succeeds.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/5">#5</a> &mdash; <em>Build PAM: the general-purpose Program/agent registry</em>.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/21">#21</a> &mdash; <em>The PAM engine + actions (event&rarr;action runtime)</em>.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/20">#20</a> &mdash; <em>Program publish/install: the pam-{program} model</em>.</li>
+      <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/33">#33</a> &mdash; <em>PAM paper (this document)</em>.</li>
+      <li><span class="tt">pam-framework</span> &mdash; <span class="tt">README.md</span>, <span class="tt">docs/plan.md</span>, <span class="tt">docs/registry-design.md</span>, <span class="tt">docs/quickstart.md</span>.</li>
+    </ol>
+  </section>
+
+  </div><!-- /twocol -->
+
+  <footer class="foot">
+    <p>Internal engineering note for the Internet Archive / Open Library team. Describes system
+    architecture and process only. Static HTML/CSS, no dependencies, works offline. Working draft &mdash;
+    the paper sharpens as the system does.</p>
+  </footer>
+
+</article>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeToggle');
+  try{var s=localStorage.getItem('paper-theme'); if(s) root.setAttribute('data-theme',s);}catch(e){}
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){var d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;cur=d?'dark':'light';}
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('paper-theme',next);}catch(e){}
+  });
+  // Highlight the active section in the table of contents.
+  var links=[].slice.call(document.querySelectorAll('.toc a'));
+  var map={};
+  links.forEach(function(a){var id=a.getAttribute('href').slice(1);var el=document.getElementById(id);if(el)map[id]=a;});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id);});
+  if('IntersectionObserver' in window && secs.length){
+    var cur=null;
+    var obs=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting)cur=e.target.id;});
+      links.forEach(function(a){a.classList.remove('active');});
+      if(cur&&map[cur])map[cur].classList.add('active');
+    },{rootMargin:'-40% 0px -55% 0px',threshold:0});
+    secs.forEach(function(s){obs.observe(s);});
+  }
+})();
+</script>
+</body>
+</html>
