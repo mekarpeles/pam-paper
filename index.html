@@ -273,6 +273,12 @@
     activate</span>, the per-developer per-Project env, and the virtualenv-style shell activation are
     shipped.)</p>
 
+    <p class="note"><span class="h">Prior art.</span> Per-directory activation that loads environment on
+    entry is a known pattern: <a href="https://direnv.net/">direnv</a> loads and unloads environment variables
+    by directory, and <a href="https://mise.jdx.dev/">mise</a> manages per-project tools and environment. PAM
+    adds the agentic layer on top, the identity, auth, and fleet a project's agents need, and may build on
+    direnv or mise for the environment half in the future rather than carrying its own.</p>
+
     <p>Activating gets you an identity and auth for the Project; running the fleet is the next section.</p>
   </section>
 
