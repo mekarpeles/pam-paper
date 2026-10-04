@@ -39,9 +39,12 @@
       <p>PAM (Project Agentic Management) does two things. First, it lets a team <em>share</em> an agentic
       configuration: you run <span class="tt">pam init</span> in a repository, the way you run
       <span class="tt">git init</span>, and it writes a committed <span class="tt">.pam/</span> that defines
-      the team and its org chart, the skills the agents can use, and a shared knowledge base. That config
-      travels with the repository and is useful on its own, so anyone who clones the repo inherits the same
-      setup. Second, it lets a developer <em>activate and employ</em> that configuration:
+      the team and its org chart, the skills the agents can use, and a shared knowledge base. The
+      <span class="tt">.pam/</span> directory is deliberately close in spirit to <span class="tt">.claude/</span>:
+      it is meant to be a generic standard for agentic config, the way <span class="tt">AGENTS.md</span>
+      generalizes <span class="tt">CLAUDE.md</span>, broadly compatible with <span class="tt">.claude/</span>
+      and its kin while adding PAM's own capabilities on top. That config travels with the repository and is
+      useful on its own, so anyone who clones the repo inherits the same setup. Second, it lets a developer <em>activate and employ</em> that configuration:
       <span class="tt">pam activate</span> works like a Python virtualenv, switching you into a project and
       loading its per-developer auth from a local vault so skills run and the forge connects across systems
       like GitHub, GitLab, and Jira. From there <span class="tt">cmux</span> runs a fleet of agents, giving
