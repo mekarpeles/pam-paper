@@ -21,7 +21,7 @@
   <a href="#forge">VI &middot; The Forge</a>
   <a href="#runtime">VII &middot; The Runtime</a>
   <a href="#team">VIII &middot; The team and roles</a>
-  <a href="#comms">IX &middot; Communication and context</a>
+  <a href="#comms">IX &middot; The tools</a>
   <a href="#use">X &middot; Using PAM</a>
   <a href="#case">XI &middot; Case study: Open Library</a>
   <a href="#refs">References</a>
@@ -140,7 +140,22 @@
     placeholders, so it is part of PAM rather than a separate install. A developer who only wants the atomic
     agent uses the ADA parts; a team running a fleet uses the rest.</p>
 
-    <h3>The principles underneath</h3>
+    <h3>What PAM adds</h3>
+    <p>PAM is a handful of novel pieces that fit together:</p>
+    <ol>
+      <li><span class="tt">pam init</span> creates a committed <span class="tt">.pam/</span> of shared agentic
+      definitions for a repo: the skills, a knowledge base, the team's org, and the agent roles.</li>
+      <li><em>ADA</em>, the Atomic Development Agent, which runs an <em>Oracle</em> to keep it from idling or
+      stopping prematurely and a per-agent queue, <span class="tt">cq</span>, to track its own work.</li>
+      <li><span class="tt">pam activate</span> activates a repo the way a Python virtualenv does, loading the
+      per-Project environment and auth a project's skills need (the vault).</li>
+      <li><span class="tt">cmux</span> spins up and coordinates fleets of agents.</li>
+      <li>a <em>Runtime</em>, comparable to GitHub Actions and workflows, that agents subscribe to so forge
+      events trigger agentic actions and work.</li>
+      <li>a <em>knowledge base</em> agents read from before a task and write back to after.</li>
+    </ol>
+
+    <h3>Philosophy</h3>
     <p>A few principles hold the design together, carried from the practice that produced ADA. An agent owns
     one unit of work and carries it whole, from the issue to a reviewed pull request. Progress is not
     monotonic: a rebase un-does a test that passed and a moving base un-does a green build, so an agent
@@ -250,9 +265,10 @@
     <p>Activating sets who you are for this Project on this machine. It records your per-developer settings
     under <span class="tt">~/.pam/projects/&lt;project&gt;/</span> and never stores credentials in the repo or
     the Store: instead it points your forge client at a per-Project auth directory, so you authenticate once,
-    as the Project's bot, and from then on every forge and git action runs as that identity. That is what
-    makes the shared skills actually work and the forge actually connect, across systems like GitHub, GitLab,
-    and Jira. <span class="tt">pam status</span> shows the active Project and
+    as the Project's bot, and from then on every forge and git action runs as that identity. This per-developer,
+    per-Project store of environment and auth is the PAM <em>vault</em>: it lives under
+    <span class="tt">~/.pam/projects/&lt;project&gt;/</span>, is never committed, and is what makes the shared
+    skills actually work and the forge actually connect, across systems like GitHub, GitLab, and Jira. <span class="tt">pam status</span> shows the active Project and
     <span class="tt">pam deactivate</span> clears it, exactly as a virtualenv would. (<span class="tt">pam
     activate</span>, the per-developer per-Project env, and the virtualenv-style shell activation are
     shipped.)</p>
@@ -262,18 +278,17 @@
 
   <section id="fleet">
     <h2>Fleet orchestration</h2>
-    <p>With a Project activated, a fleet of agents runs on your machine. The earlier ADA system leaned on two
-    tools for this, <span class="tt">cmux</span> and <span class="tt">claudio</span>. PAM keeps
-    <span class="tt">cmux</span> for sessions and homes, and splits the two jobs
-    <span class="tt">claudio</span> used to do, a scheduled self-nudge and agent-to-agent messaging, into the
-    Oracle (Section&nbsp;V) and Claude's native <span class="tt">SendMessage</span>. Each agent also keeps its
-    own local queue, <span class="tt">cq</span>.</p>
+    <p>With a Project activated, a fleet of agents runs on your machine. Two tools bring the fleet up and hold
+    it together: <span class="tt">cmux</span>, for persistent sessions and workspaces, and
+    <span class="tt">claudio</span>, the Claude Code wrapper where each agent's home directory lives. Each
+    agent keeps its own local queue, <span class="tt">cq</span>, and talks to its peers through Claude's native
+    <span class="tt">SendMessage</span>.</p>
 
     <h3>cmux</h3>
     <p><span class="tt">cmux</span>, the Claude multiplexer, provides persistent, re-attachable sessions and
-    keeps agents alive, organized into workspaces. It gives each agent its own home directory, where that
-    agent's work queue (<span class="tt">cq</span>) and its Claude session live.
-    <span class="tt">pam spawn</span> seeds an onboarded agent's home with a bootstrap that points at its
+    keeps agents alive, organized into workspaces, each agent in its own home directory (hosted by
+    <span class="tt">claudio</span>, below). <span class="tt">pam spawn</span> seeds an onboarded agent's home
+    with a bootstrap that points at its
     committed definition in <span class="tt">.pam/agents/&lt;name&gt;/</span> and the repo, then brings it up
     through <span class="tt">cmux</span> so the agent boots clean and reads its own identity, with the active
     Project's env applied so it acts as the Project bot. An ADA agent creates its own worktree as its first
@@ -286,6 +301,14 @@
     <span class="tt">cmux</span> is the clean follow-up, tracked on
     <a href="https://github.com/mekarpeles/PAM/issues/50">#50</a>.)</p>
 
+    <h3>claudio</h3>
+    <p><span class="tt">claudio</span> wraps Claude Code with programmable logic, and it is where an agent's
+    home directory lives: its identity, its <span class="tt">cq</span> queue, and its Claude session.
+    <span class="tt">cmux</span> brings agents up through <span class="tt">claudio</span>, which exposes the stop
+    hook that the Oracle augments (Section&nbsp;V), so the subconscious check runs at exactly the moment an
+    agent is about to go quiet. Where the earlier ADA system also used <span class="tt">claudio</span> for an
+    agent-to-agent inbox, PAM now leaves that to Claude's native <span class="tt">SendMessage</span>.</p>
+
     <h3>cq, the per-agent queue</h3>
     <p><span class="tt">cq</span> is an agent's own issue queue, one small SQLite tracker per agent for the
     work it is tracking for itself, kept in the agent's home under <span class="tt">~/.pam/</span>. It holds
@@ -296,11 +319,8 @@
     <h3>Messaging</h3>
     <p>Agents talk to each other through Claude's native <span class="tt">SendMessage</span>, which delivers a
     message to the target agent and is picked up when that agent next comes idle, so a long-running agent is
-    never interrupted mid-task. This replaces the peer-to-peer inbox the earlier system built into
-    <span class="tt">claudio</span>. The other half of what <span class="tt">claudio</span> did, nudging an
-    agent when it was about to go quiet, is now the Oracle: a self-directed check rather than a message from a
-    peer. Reporting lines in the org chart are organizational labels, not a live routing path; PAM does not
-    relay work from agent to agent through many hops.</p>
+    never interrupted mid-task. Reporting lines in the org chart are organizational labels, not a live routing
+    path; PAM does not relay work from agent to agent through many hops.</p>
   </section>
 
   <section id="ada">
@@ -560,12 +580,43 @@
   </section>
 
   <section id="comms">
-    <h2>Communication and context</h2>
-    <p>With the pieces in hand, it helps to see how they fit as channels: where each kind of context lives,
-    who can see it, and how agents and humans pass information. The center of gravity is
-    <span class="tt">.pam/</span>, the committed brain of the Project: it carries the shared playbook, the
-    roles and org chart, the skills, and the knowledge base, so every agent that boots in the repo starts from
-    the same place. Around it sit the per-agent and live channels. Table&nbsp;1 maps them.</p>
+    <h2>The tools</h2>
+    <p>This section gathers the pieces in one place. PAM is not one program but a small set of tools with one
+    command surface over them. The glossary below names each; the paragraphs above gave the detail.</p>
+
+    <dl class="terms">
+      <dt>.pam/</dt>
+      <dd>the committed, shared config for a Project: roles, the org chart, skills, and the knowledge base.
+      The brain that travels with the repo.</dd>
+      <dt>kb</dt>
+      <dd>the shared knowledge base under <span class="tt">.pam/kb/</span>, Obsidian-style notes every agent
+      reads before a task and writes back to after.</dd>
+      <dt>pam vault</dt>
+      <dd>your per-developer, per-Project environment and auth, loaded by <span class="tt">pam activate</span>
+      and kept under <span class="tt">~/.pam/</span>; never committed.</dd>
+      <dt>Runtime</dt>
+      <dd>the event watcher for the Forge, comparable to GitHub Actions; agents subscribe through Actions so
+      forge events trigger work.</dd>
+      <dt>cmux</dt>
+      <dd>the multiplexer that spins up and coordinates a fleet, with persistent, re-attachable sessions and
+      workspaces.</dd>
+      <dt>claudio</dt>
+      <dd>the Claude Code wrapper where each agent's home directory lives, and the stop-hook seam the Oracle
+      uses.</dd>
+      <dt>cq</dt>
+      <dd>a per-agent SQLite queue for the agent's own tasks, blockers, and side-discoveries.</dd>
+      <dt>ADA</dt>
+      <dd>the Atomic Development Agent: one issue to one reviewed pull request, then stop.</dd>
+      <dt>Oracle</dt>
+      <dd>ADA's subconscious: at the moment of stopping it surfaces one thing that may have been missed;
+      silence is not approval.</dd>
+    </dl>
+
+    <h3>Where context lives</h3>
+    <p>It also helps to see the pieces as channels: where each kind of context lives, who can see it, and how
+    agents and humans pass information. The center of gravity is <span class="tt">.pam/</span>, the committed
+    brain of the Project, so every agent that boots in the repo starts from the same place. Around it sit the
+    per-agent and live channels. Table&nbsp;1 maps them.</p>
 
     <div class="tabwrap">
       <table>
@@ -623,6 +674,27 @@ pam team --project openlibrary    # the reporting tree with statuses
 pam agent state ada-13842         # computed work state from pull-request and CI signals
 pam agent ledger ada-13842        # per-requirement ledger: done / stale / asserted / open vs HEAD
 pam epic state "Tags"             # the epic rollup and each agent's state</pre>
+
+    <h3>What happens at each step</h3>
+    <ol class="steps">
+      <li><span class="s-t">init</span> makes the repo agent-workable: it writes <span class="tt">.pam/</span>,
+      infers the forge from the origin remote, seeds the role catalog and the knowledge base, and registers
+      the Project in your <span class="tt">~/.pam</span>. Commit <span class="tt">.pam/</span> with the code.</li>
+      <li><span class="s-t">activate</span> makes you the Project bot on this machine: it writes your vault and
+      points the forge client at a per-Project auth dir, so you authenticate once and every later action runs
+      as that identity.</li>
+      <li><span class="s-t">onboard</span> registers the team, a Project Lead, a Division Lead, and ADA
+      workers, each with a role and a reporting line, writing a committed definition into
+      <span class="tt">.pam/agents/</span>.</li>
+      <li><span class="s-t">epic add / assign</span> defines a unit of work and puts a named ADA agent on one
+      of its sub-issues.</li>
+      <li><span class="s-t">spawn</span> brings an agent up through <span class="tt">cmux</span> and
+      <span class="tt">claudio</span> in its own home, with the vault applied; an ADA agent worktrees itself and
+      begins, reading the knowledge base first.</li>
+      <li><span class="s-t">status / team / state / ledger</span> read live signals back and report each agent's
+      position against the current commit, never as a bare percentage.</li>
+    </ol>
+
     <p>A name that is already live cannot be onboarded again, because reusing a name must never merge two
     agents' histories; retire the old one first with <span class="tt">pam agent retire</span>. The state
     commands read live pull-request, CI, and ledger signals and report the position against the current
@@ -680,6 +752,10 @@ pam epic state "Tags"             # the epic rollup and each agent's state</pre>
       <li>Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/34">#34</a>: the first-class Knowledge Base. Issue&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/35">#35</a>: open design questions, including the two-system Forge split.</li>
       <li>Epic&nbsp;<a href="https://github.com/mekarpeles/PAM/issues/33">#33</a>: this paper.</li>
       <li><span class="tt">pam-framework</span>: <span class="tt">README.md</span> (canonical), <span class="tt">docs/quickstart.md</span>, <span class="tt">docs/conventions.md</span>, <span class="tt">docs/plan.md</span>, <span class="tt">docs/registry-design.md</span>, <span class="tt">docs/runtime-design.md</span>, and <span class="tt">pam/agents/ada/</span>.</li>
+      <li>Related agent-orchestration work:
+      <a href="https://github.com/andyrewlee/awesome-agent-orchestrators">awesome-agent-orchestrators</a>, a
+      catalog of orchestration tools, and
+      <a href="https://github.com/paperclipai/paperclip">paperclip</a>.</li>
     </ol>
   </section>
 
