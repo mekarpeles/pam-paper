@@ -47,8 +47,8 @@
       useful on its own, so anyone who clones the repo inherits the same setup. Second, it lets a developer <em>activate and employ</em> that configuration:
       <span class="tt">pam activate</span> works like a Python virtualenv, switching you into a project and
       loading its per-developer auth from a local vault so skills run and the forge connects across systems
-      like GitHub, GitLab, and Jira. From there <span class="tt">cmux</span> runs a fleet of agents, giving
-      each its own home directory, and the worker at the center of the fleet is ADA, the Atomic Development
+      like GitHub, GitLab, and Jira. From there PAM gives each agent its own home directory and
+      <span class="tt">cmux</span> runs the fleet, whose worker at the center is ADA, the Atomic Development
       Agent, which carries one issue to a reviewed pull request and then stops. A Runtime watches the forge
       and turns events into work for agents that already exist. One tool, <span class="tt">pam</span>, carries
       all of it.</p>
@@ -69,8 +69,8 @@
 
     <figure>
       <div class="figbox figbox--plain">
-        <svg class="diagram" viewBox="0 0 760 548" role="img" aria-labelledby="f1t">
-          <title id="f1t">PAM as a layered stack: a repository's committed .pam config at the top (the shared half); a per-developer pam virtualenv with cmux and per-agent homes below it, fanning out to a fleet of ADA agents (the Atomic Development Agent, each with its Oracle) as the worker; and the Forge and Runtime as the execution layer (the activate-and-employ half).</title>
+        <svg class="diagram" viewBox="0 0 760 520" role="img" aria-labelledby="f1t">
+          <title id="f1t">PAM as a layered stack: a repository's committed .pam config at the top (the shared half); below it a per-developer pam virtualenv that holds, per project, a vault of keys and env and a home directory for every agent, all under system-level ~/.pam; the virtualenv fans out to a fleet of ADA agents (the Atomic Development Agent, each with its Oracle), which are also fed from below by the Forge and its Runtime (the activate-and-employ half).</title>
           <defs>
             <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -80,8 +80,8 @@
           <!-- two-half rail -->
           <path class="edge" d="M101,40 L96,40 L96,150 L101,150"/>
           <text class="lbl" x="74" y="95" text-anchor="middle" transform="rotate(-90 74 95)">shared in the repo</text>
-          <path class="edge" d="M101,166 L96,166 L96,534 L101,534"/>
-          <text class="lbl" x="74" y="350" text-anchor="middle" transform="rotate(-90 74 350)">activated per developer</text>
+          <path class="edge" d="M101,166 L96,166 L96,508 L101,508"/>
+          <text class="lbl" x="74" y="337" text-anchor="middle" transform="rotate(-90 74 337)">activated per developer</text>
 
           <!-- Layer 1: Git repo -->
           <rect x="112" y="40" width="608" height="110"/>
@@ -93,47 +93,56 @@
 
           <path class="edge arrow" d="M416,150 L416,166"/>
 
-          <!-- Layer 2: pam virtualenv -->
-          <rect x="112" y="166" width="608" height="224"/>
+          <!-- Layer 2: pam virtualenv (system-level ~/.pam, per developer) -->
+          <rect x="112" y="166" width="608" height="196"/>
           <text class="t" x="134" y="192" text-anchor="start">pam virtualenv</text>
           <text class="m" x="268" y="192" text-anchor="start">pam activate</text>
-          <text class="s" x="134" y="216" text-anchor="start">· activate PAM for a repo or project</text>
-          <text class="s" x="134" y="236" text-anchor="start">· load and save that project's ENV auth (skills run, the forge connects)</text>
+          <text class="s" x="134" y="214" text-anchor="start">· activate a repo or project; state lives under system-level ~/.pam/</text>
 
-          <rect x="134" y="252" width="564" height="126"/>
-          <text class="t" x="156" y="278" text-anchor="start">cmux</text>
-          <text class="m" x="212" y="278" text-anchor="start">manage the agentic fleet</text>
-          <rect x="156" y="292" width="520" height="44"/>
-          <text class="m" x="172" y="318" text-anchor="start">a home directory per agent</text>
-          <text class="s" x="372" y="318" text-anchor="start">(cq, claude_session)</text>
-          <text class="s" x="156" y="360" text-anchor="start">· fleet management</text>
+          <rect x="134" y="234" width="276" height="108"/>
+          <text class="m" x="148" y="262" text-anchor="start">~/.pam/projects/&lt;project&gt;/</text>
+          <text class="t" x="148" y="292" text-anchor="start">vault</text>
+          <text class="s" x="148" y="314" text-anchor="start">keys / ENV per project</text>
+
+          <rect x="426" y="234" width="272" height="108"/>
+          <text class="m" x="440" y="262" text-anchor="start">~/.pam/agents/&lt;id&gt;/</text>
+          <text class="t" x="440" y="292" text-anchor="start">homedir per agent</text>
+          <text class="s" x="440" y="314" text-anchor="start">keyed by stable id (cq, refs, resume)</text>
 
           <!-- virtualenv fans out to a fleet of ADA agents (1..n) -->
-          <path class="edge arrow" d="M416,390 L300,406"/>
-          <path class="edge arrow" d="M416,390 L416,406"/>
-          <path class="edge arrow" d="M416,390 L532,406"/>
-          <text class="lbl" x="584" y="401" text-anchor="middle">1 … n</text>
+          <path class="edge arrow" d="M416,362 L300,378"/>
+          <path class="edge arrow" d="M416,362 L416,378"/>
+          <path class="edge arrow" d="M416,362 L532,378"/>
+          <text class="lbl" x="584" y="373" text-anchor="middle">1 … n</text>
 
-          <!-- Layer 3: ADA, the Atomic Development Agent, with its Oracle -->
-          <rect x="112" y="406" width="608" height="56"/>
-          <text class="t" x="416" y="432" text-anchor="middle">ADA: Atomic Development Agent w/ Oracle</text>
-          <text class="s" x="416" y="450" text-anchor="middle">the atomic worker: one issue to one pull request, then stop</text>
+          <!-- Layer 3: ADA, the Atomic Development Agent(s), with its Oracle -->
+          <rect x="112" y="378" width="608" height="56"/>
+          <text class="t" x="416" y="404" text-anchor="middle">ADA: Atomic Development Agent(s) w/ Oracle</text>
+          <text class="s" x="416" y="422" text-anchor="middle">the atomic worker: one issue to one pull request, then stop</text>
 
-          <path class="edge arrow" d="M416,462 L416,478"/>
+          <!-- Forge/Runtime feeds ADA from below -->
+          <path class="edge arrow" d="M416,452 L300,434"/>
+          <path class="edge arrow" d="M416,452 L416,434"/>
+          <path class="edge arrow" d="M416,452 L532,434"/>
+          <text class="lbl" x="584" y="447" text-anchor="middle">events</text>
 
-          <!-- Layer 4: Forge and Runtime -->
-          <rect class="f" x="112" y="478" width="608" height="56"/>
-          <text class="t" x="416" y="504" text-anchor="middle">Forge and Runtime</text>
-          <text class="s" x="416" y="522" text-anchor="middle">watch the forge, turn events into work for agents</text>
+          <!-- Layer 4: Forge (Runtime) -->
+          <rect class="f" x="112" y="452" width="608" height="56"/>
+          <text class="t" x="416" y="478" text-anchor="middle">Forge (Runtime)</text>
+          <text class="s" x="416" y="496" text-anchor="middle">watch the forge, turn events into work for agents</text>
         </svg>
       </div>
       <figcaption>PAM as a layered stack. The top layer is the shared half: a repository with a committed
       <span class="tt">.pam/</span> that defines the team and its org, the skills, and a shared knowledge
-      base. Everything below it is the activate-and-employ half, run per developer: a
-      <span class="tt">pam</span> virtualenv that activates the project and loads its env and auth, with
-      <span class="tt">cmux</span> managing a fleet and giving each agent a home directory; ADA, the Atomic
-      Development Agent with its Oracle, as the worker the virtualenv spins up one to many of; and the Forge
-      and Runtime as the execution layer.</figcaption>
+      base. Below it is the activate-and-employ half, run per developer and kept under system-level
+      <span class="tt">~/.pam/</span>: <span class="tt">pam activate</span> loads a per-project vault of keys
+      and env (<span class="tt">~/.pam/projects/&lt;project&gt;/</span>), and every agent gets a home directory
+      keyed by its stable id (<span class="tt">~/.pam/agents/&lt;id&gt;/</span>, holding its
+      <span class="tt">cq</span> queue, refs, and resume facts). The virtualenv spins up one to many ADA
+      agents, the Atomic Development Agent each with its Oracle, which the Forge and its Runtime also feed from
+      below by turning forge events into work. (<span class="tt">cmux</span> launches and attaches sessions
+      into these homes; it no longer owns them. Agents still living under <span class="tt">~/.cmux/</span>
+      migrate by attrition.)</figcaption>
     </figure>
 
     <p>The top layer is the shared half. The three below it are the employed half, which turns that shared
@@ -230,9 +239,9 @@
 
           <rect x="612" y="92" width="168" height="152"/>
           <text class="t" x="628" y="114" text-anchor="start">agents/&lt;id&gt;/</text>
-          <text class="s" x="628" y="136" text-anchor="start">· identity</text>
+          <text class="s" x="628" y="136" text-anchor="start">· identity, refs</text>
           <text class="s" x="628" y="156" text-anchor="start">· cq: work queue (SQLite)</text>
-          <text class="s" x="628" y="176" text-anchor="start">· claude_session</text>
+          <text class="s" x="628" y="176" text-anchor="start">· last-session-id, cwd</text>
           <text class="s" x="628" y="196" text-anchor="start">· ledger, messages</text>
         </svg>
       </div>
@@ -292,43 +301,48 @@
 
   <section id="fleet">
     <h2>Fleet orchestration</h2>
-    <p>With a Project activated, a fleet of agents runs on your machine. Two tools bring the fleet up and hold
-    it together: <span class="tt">cmux</span>, for persistent sessions and workspaces, and
-    <span class="tt">claudio</span>, the Claude Code wrapper where each agent's home directory lives. Each
-    agent keeps its own local queue, <span class="tt">cq</span>, and talks to its peers through Claude's native
-    <span class="tt">SendMessage</span>.</p>
+    <p>With a Project activated, a fleet of agents runs on your machine. PAM itself provisions each agent a
+    home directory, <span class="tt">cmux</span> launches a session into it, and <span class="tt">claudio</span>
+    wraps the Claude Code process inside. Each agent keeps its own queue, <span class="tt">cq</span>, in that
+    home and talks to its peers through Claude's native <span class="tt">SendMessage</span>.</p>
+
+    <h3>Agent homes</h3>
+    <p>PAM provisions a home for every agent at <span class="tt">~/.pam/agents/&lt;id&gt;/</span>, keyed by the
+    agent's stable id rather than its name or its project. <span class="tt">pam agent provision</span> writes
+    it with no dependency on <span class="tt">cmux</span> or tmux: an <span class="tt">identity.md</span> and
+    <span class="tt">AGENTS.md</span>, a <span class="tt">refs.toml</span>, the agent's
+    <span class="tt">.cq/</span> queue, and the two facts a Claude session needs to resume,
+    <span class="tt">last-session-id</span> and <span class="tt">cwd</span>. Keying by stable id is deliberate:
+    a reused display name still maps to two separate homes and histories, and an agent that belongs to no
+    project still has a home, because project membership is a recorded relationship in the Store, not a
+    directory path. (The layout and <span class="tt">pam agent provision</span> are built; the agents still
+    living under <span class="tt">~/.cmux/&lt;name&gt;/</span> migrate in place by attrition, since a running
+    daemon's directory cannot be moved.)</p>
 
     <h3>cmux</h3>
     <p><span class="tt">cmux</span>, the Claude multiplexer, provides persistent, re-attachable sessions and
-    keeps agents alive, organized into workspaces, each agent in its own home directory (hosted by
-    <span class="tt">claudio</span>, below). <span class="tt">pam spawn</span> seeds an onboarded agent's home
-    with a bootstrap that points at its
-    committed definition in <span class="tt">.pam/agents/&lt;name&gt;/</span> and the repo, then brings it up
-    through <span class="tt">cmux</span> so the agent boots clean and reads its own identity, with the active
-    Project's env applied so it acts as the Project bot. An ADA agent creates its own worktree as its first
-    act; a lead just works the forge.</p>
-    <p>The integration runs one way on purpose: <span class="tt">cmux</span> integrates with PAM, and PAM
-    never imports <span class="tt">cmux</span>, so <span class="tt">pip install pam</span> works on a machine
-    with no tmux and a test keeps that rule green. The Runtime's decision core is tmux-free and runs in
-    dry-run by default; real dispatch goes through the <span class="tt">cmux</span> seam. (<span class="tt">pam
-    spawn</span> is shipped as a dry-run-by-default prototype; a first-class setup seam in
-    <span class="tt">cmux</span> is the clean follow-up, tracked on
-    <a href="https://github.com/mekarpeles/PAM/issues/50">#50</a>.)</p>
+    keeps agents alive, organized into workspaces. It launches and attaches a session into a PAM-provisioned
+    home; it no longer owns that home. The integration runs one way on purpose: <span class="tt">cmux</span>
+    integrates with PAM, and PAM never imports <span class="tt">cmux</span>, so <span class="tt">pip install
+    pam</span> works on a machine with no tmux and a test keeps that rule green. The Runtime's decision core is
+    tmux-free and runs in dry-run by default; real dispatch goes through the <span class="tt">cmux</span> seam.
+    (<span class="tt">pam agent provision</span> is the cmux-free path that writes the home today;
+    <span class="tt">pam spawn</span>, the <span class="tt">cmux</span> launcher that boots a session into it,
+    is deferred, tracked on <a href="https://github.com/mekarpeles/PAM/issues/50">#50</a>.)</p>
 
     <h3>claudio</h3>
-    <p><span class="tt">claudio</span> wraps Claude Code with programmable logic, and it is where an agent's
-    home directory lives: its identity, its <span class="tt">cq</span> queue, and its Claude session.
-    <span class="tt">cmux</span> brings agents up through <span class="tt">claudio</span>, which exposes the stop
-    hook that the Oracle augments (Section&nbsp;V), so the subconscious check runs at exactly the moment an
-    agent is about to go quiet. Where the earlier ADA system also used <span class="tt">claudio</span> for an
+    <p><span class="tt">claudio</span> wraps Claude Code with programmable logic. It exposes the stop hook that
+    the Oracle augments (Section&nbsp;V), so the subconscious check runs at exactly the moment an agent is
+    about to go quiet. Where the earlier ADA system also used <span class="tt">claudio</span> for an
     agent-to-agent inbox, PAM now leaves that to Claude's native <span class="tt">SendMessage</span>.</p>
 
     <h3>cq, the per-agent queue</h3>
     <p><span class="tt">cq</span> is an agent's own issue queue, one small SQLite tracker per agent for the
-    work it is tracking for itself, kept in the agent's home under <span class="tt">~/.pam/</span>. It holds
-    the agent's own tasks, blockers, and side-discoveries, and it is also the default local tracking system
-    when the repository's remote does not imply a forge. (The agent home is shipped; folding
-    <span class="tt">cq</span> into PAM and using it as the default tracker is forward-looking.)</p>
+    work it is tracking for itself, kept in the agent's home at
+    <span class="tt">~/.pam/agents/&lt;id&gt;/</span>. It holds the agent's own tasks, blockers, and
+    side-discoveries, and it is also the default local tracking system when the repository's remote does not
+    imply a forge. (The agent home is shipped; folding <span class="tt">cq</span> into PAM and using it as the
+    default tracker is forward-looking.)</p>
 
     <h3>Messaging</h3>
     <p>Agents talk to each other through Claude's native <span class="tt">SendMessage</span>, which delivers a
@@ -607,16 +621,19 @@
       reads before a task and writes back to after.</dd>
       <dt>pam vault</dt>
       <dd>your per-developer, per-Project environment and auth, loaded by <span class="tt">pam activate</span>
-      and kept under <span class="tt">~/.pam/</span>; never committed.</dd>
+      and kept at <span class="tt">~/.pam/projects/&lt;project&gt;/</span>; never committed.</dd>
+      <dt>agent home</dt>
+      <dd><span class="tt">~/.pam/agents/&lt;id&gt;/</span>, keyed by stable id and provisioned by
+      <span class="tt">pam agent provision</span>: the agent's <span class="tt">cq</span>, identity, refs, and
+      resume facts.</dd>
       <dt>Runtime</dt>
       <dd>the event watcher for the Forge, comparable to GitHub Actions; agents subscribe through Actions so
       forge events trigger work.</dd>
       <dt>cmux</dt>
-      <dd>the multiplexer that spins up and coordinates a fleet, with persistent, re-attachable sessions and
-      workspaces.</dd>
+      <dd>the multiplexer that launches and attaches sessions into agent homes and keeps a fleet alive; it no
+      longer owns the home.</dd>
       <dt>claudio</dt>
-      <dd>the Claude Code wrapper where each agent's home directory lives, and the stop-hook seam the Oracle
-      uses.</dd>
+      <dd>the Claude Code wrapper around an agent's session, and the stop-hook seam the Oracle uses.</dd>
       <dt>cq</dt>
       <dd>a per-agent SQLite queue for the agent's own tasks, blockers, and side-discoveries.</dd>
       <dt>ADA</dt>
@@ -680,8 +697,8 @@ pam agent onboard ada-13842 --project openlibrary --role ada_agent     --reports
 pam epic add "Tags" --project openlibrary --lead tags-lead --epic 13755 --year 2026
 pam epic assign "Tags" --agent ada-13842 --sub 13842 --by tags-lead
 
-pam spawn ada-13842 --project openlibrary        # seed the agent home, bring it up via cmux (dry-run)
-pam spawn ada-13842 --project openlibrary --go   # actually launch
+pam agent provision ada-13842 --project openlibrary   # write the home at ~/.pam/agents/<id>/ (cmux-free)
+pam spawn ada-13842 --project openlibrary --go        # (deferred) launch a session into it via cmux
 
 pam status                        # your Projects and their leads
 pam team --project openlibrary    # the reporting tree with statuses
@@ -702,9 +719,10 @@ pam epic state "Tags"             # the epic rollup and each agent's state</pre>
       <span class="tt">.pam/agents/</span>.</li>
       <li><span class="s-t">epic add / assign</span> defines a unit of work and puts a named ADA agent on one
       of its sub-issues.</li>
-      <li><span class="s-t">spawn</span> brings an agent up through <span class="tt">cmux</span> and
-      <span class="tt">claudio</span> in its own home, with the vault applied; an ADA agent worktrees itself and
-      begins, reading the knowledge base first.</li>
+      <li><span class="s-t">provision / spawn</span> writes the agent's home at
+      <span class="tt">~/.pam/agents/&lt;id&gt;/</span> (<span class="tt">pam agent provision</span>, cmux-free),
+      then <span class="tt">cmux</span> launches a session into it with the vault applied; an ADA agent
+      worktrees itself and begins, reading the knowledge base first.</li>
       <li><span class="s-t">status / team / state / ledger</span> read live signals back and report each agent's
       position against the current commit, never as a bare percentage.</li>
     </ol>
@@ -750,7 +768,7 @@ pam epic state "Tags"             # the epic rollup and each agent's state</pre>
           <tr><td>Development system</td><td>GitHub pull requests, with CI and review</td></tr>
           <tr><td>Knowledge base</td><td><span class="tt">ol-kb</span>, Obsidian-style, under <span class="tt">.pam/kb/</span></td></tr>
           <tr><td>Roles</td><td><span class="tt">project_lead</span>, <span class="tt">division_lead</span>, <span class="tt">ada_agent</span></td></tr>
-          <tr><td>Fleet</td><td><span class="tt">cmux</span> workspaces, one home directory per agent</td></tr>
+          <tr><td>Fleet</td><td>PAM-provisioned homes (<span class="tt">~/.pam/agents/&lt;id&gt;/</span>), launched by <span class="tt">cmux</span></td></tr>
           <tr><td>Human gate</td><td>a person reviews and merges every pull request</td></tr>
         </tbody>
       </table>
