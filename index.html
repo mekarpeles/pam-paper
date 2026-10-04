@@ -319,6 +319,12 @@
     living under <span class="tt">~/.cmux/&lt;name&gt;/</span> migrate in place by attrition, since a running
     daemon's directory cannot be moved.)</p>
 
+    <p class="note"><span class="h">Being finalized.</span> Two specifics in this subsection are under active
+    design and may change: whether agent homes stay flat at <span class="tt">~/.pam/agents/&lt;id&gt;/</span>
+    or nest per project (keyed by project id), and whether PAM writes the home directly or does so through
+    <span class="tt">claudio</span> as the home-creator. The paper tracks whatever lands; the rest of this
+    section holds either way.</p>
+
     <h3>cmux</h3>
     <p><span class="tt">cmux</span>, the Claude multiplexer, provides persistent, re-attachable sessions and
     keeps agents alive, organized into workspaces. It launches and attaches a session into a PAM-provisioned
