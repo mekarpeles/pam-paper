@@ -67,7 +67,7 @@
     <figure>
       <div class="figbox figbox--plain">
         <svg class="diagram" viewBox="0 0 760 548" role="img" aria-labelledby="f1t">
-          <title id="f1t">PAM as a layered stack: a repository's committed .pam config at the top (the shared half); a per-developer pam virtualenv with cmux and per-agent homes below it; ADA and the Oracle as the worker; and the Forge and Runtime as the execution layer (the activate-and-employ half).</title>
+          <title id="f1t">PAM as a layered stack: a repository's committed .pam config at the top (the shared half); a per-developer pam virtualenv with cmux and per-agent homes below it, fanning out to a fleet of ADA agents (the Atomic Development Agent, each with its Oracle) as the worker; and the Forge and Runtime as the execution layer (the activate-and-employ half).</title>
           <defs>
             <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -105,11 +105,15 @@
           <text class="s" x="372" y="318" text-anchor="start">(cq, claude_session)</text>
           <text class="s" x="156" y="360" text-anchor="start">· fleet management</text>
 
+          <!-- virtualenv fans out to a fleet of ADA agents (1..n) -->
+          <path class="edge arrow" d="M416,390 L300,406"/>
           <path class="edge arrow" d="M416,390 L416,406"/>
+          <path class="edge arrow" d="M416,390 L532,406"/>
+          <text class="lbl" x="584" y="401" text-anchor="middle">1 … n</text>
 
-          <!-- Layer 3: ADA and the Oracle -->
+          <!-- Layer 3: ADA, the Atomic Development Agent, with its Oracle -->
           <rect x="112" y="406" width="608" height="56"/>
-          <text class="t" x="416" y="432" text-anchor="middle">ADA and the Oracle</text>
+          <text class="t" x="416" y="432" text-anchor="middle">ADA: Atomic Development Agent w/ Oracle</text>
           <text class="s" x="416" y="450" text-anchor="middle">the atomic worker: one issue to one pull request, then stop</text>
 
           <path class="edge arrow" d="M416,462 L416,478"/>
@@ -124,8 +128,9 @@
       <span class="tt">.pam/</span> that defines the team and its org, the skills, and a shared knowledge
       base. Everything below it is the activate-and-employ half, run per developer: a
       <span class="tt">pam</span> virtualenv that activates the project and loads its env and auth, with
-      <span class="tt">cmux</span> managing a fleet and giving each agent a home directory; ADA and its
-      Oracle as the worker; and the Forge and Runtime as the execution layer.</figcaption>
+      <span class="tt">cmux</span> managing a fleet and giving each agent a home directory; ADA, the Atomic
+      Development Agent with its Oracle, as the worker the virtualenv spins up one to many of; and the Forge
+      and Runtime as the execution layer.</figcaption>
     </figure>
 
     <p>The top layer is the shared half. The three below it are the employed half, which turns that shared
